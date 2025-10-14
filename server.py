@@ -1,113 +1,173 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string, redirect, url_for, session
 from datetime import datetime
-import requests
-import os
-import json
+import os, json
 
 app = Flask(__name__)
+app.secret_key = os.getenv("APP_SECRET_KEY", "superclave")  # para sesiones seguras
 
-# =========================================================
-# 🔧 CONFIGURACIÓN BASE
-# =========================================================
-ACCESS_TOKEN = os.getenv("MP_ACCESS_TOKEN", "APP_USR-7815066182538811-101317-a99416f9647435ea507fe1c029c4315d-62679300")
-PAYMENTS_FILE = "payments.json"
+DATA_FILE = "transfers.json"
+USERS_FILE = "users.json"
 
-# =========================================================
-# 🧾 GESTIÓN LOCAL DE PAGOS
-# =========================================================
-def load_payments():
-    if not os.path.exists(PAYMENTS_FILE):
-        return []
-    with open(PAYMENTS_FILE, "r", encoding="utf-8") as f:
+# ===================== UTILIDADES =====================
+
+def load_json(file, default):
+    if not os.path.exists(file):
+        with open(file, "w") as f:
+            json.dump(default, f, indent=2)
+        return default
+    with open(file, "r") as f:
         try:
             return json.load(f)
         except:
-            return []
+            return default
 
-def save_payments(data):
-    with open(PAYMENTS_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def save_json(file, data):
+    with open(file, "w") as f:
+        json.dump(data, f, indent=2)
 
-# =========================================================
-# 🔄 CONSULTA DE PAGOS A MERCADO PAGO
-# =========================================================
-def get_recent_payments():
-    url = "https://api.mercadopago.com/v1/payments/search"
-    headers = {"Authorization": f"Bearer {ACCESS_TOKEN}"}
-    params = {
-        "sort": "date_created",
-        "criteria": "desc",
-        "limit": 10
+# ===================== API DE PAGOS =====================
+
+@app.route("/api/payments")
+def get_payments():
+    token = request.args.get("token")
+    data = load_json(DATA_FILE, {})
+    if token and token in data:
+        return jsonify(data[token])
+    return jsonify([])
+
+@app.route("/api/save", methods=["POST"])
+def save_payment():
+    data = load_json(DATA_FILE, {})
+    body = request.get_json(force=True)
+    token = body.get("token", "BlackDog-ESP32-LOCAL")
+
+    if token not in data:
+        data[token] = []
+
+    nuevo = {
+        "id": body.get("id", str(int(datetime.now().timestamp()))),
+        "monto": body.get("monto", 0),
+        "nombre": body.get("nombre", "Desconocido"),
+        "estado": body.get("estado", "approved"),
+        "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code != 200:
-        return []
-    data = response.json().get("results", [])
-    payments = []
 
-    for item in data:
-        if item.get("status") == "approved":
-            payer = item.get("payer", {}).get("first_name", "Desconocido")
-            amount = item.get("transaction_amount", 0)
-            date_created = item.get("date_created", "")
-            date_local = datetime.strptime(date_created[:19], "%Y-%m-%dT%H:%M:%S").strftime("%d/%m/%Y %H:%M:%S")
-            payments.append({
-                "id": item.get("id"),
-                "nombre": payer,
-                "monto": amount,
-                "estado": item.get("status"),
-                "fecha_local": date_local
-            })
-    return payments
+    # Evita duplicados
+    if not any(t["id"] == nuevo["id"] for t in data[token]):
+        data[token].insert(0, nuevo)
+        save_json(DATA_FILE, data)
+        print(f"💰 Nueva transferencia [{token}]: ${nuevo['monto']} - {nuevo['nombre']}")
 
-# =========================================================
-# 🔐 ENDPOINT: /api/payments?token=XXXX
-# =========================================================
-@app.route("/api/payments", methods=["GET"])
-def api_payments():
-    token = request.args.get("token", "DEFAULT")
-    all_payments = get_recent_payments()
-    if not all_payments:
-        return jsonify({"payments": []})
+    return jsonify({"ok": True})
 
-    # Cargar histórico local
-    local_data = load_payments()
+# ===================== LOGIN =====================
 
-    # Registrar nuevas
-    for p in all_payments:
-        if p["id"] not in [x["id"] for x in local_data]:
-            p["token"] = token
-            local_data.insert(0, p)
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    users = load_json(USERS_FILE, {"admin": "blackdog123"})
+    if request.method == "POST":
+        user = request.form.get("user")
+        password = request.form.get("password")
+        if user in users and users[user] == password:
+            session["user"] = user
+            return redirect(url_for("admin_panel"))
+        return render_template_string(LOGIN_HTML, error="❌ Usuario o contraseña incorrectos")
+    return render_template_string(LOGIN_HTML)
 
-    save_payments(local_data)
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
-    # Filtrar por token (cada negocio ve solo sus pagos)
-    pagos_filtrados = [x for x in local_data if x.get("token") == token]
-    return jsonify(pagos_filtrados)
+# ===================== PANEL ADMIN =====================
 
-# =========================================================
-# 🧹 ENDPOINT: BORRAR HISTORIAL (opcional)
-# =========================================================
-@app.route("/api/clear", methods=["POST"])
+@app.route("/admin")
+def admin_panel():
+    if "user" not in session:
+        return redirect(url_for("login"))
+
+    data = load_json(DATA_FILE, {})
+    html = render_template_string(ADMIN_HTML, negocios=data, usuario=session["user"])
+    return html
+
+@app.route("/admin/clear/<token>")
+def clear_business(token):
+    if "user" not in session:
+        return redirect(url_for("login"))
+    data = load_json(DATA_FILE, {})
+    if token in data:
+        del data[token]
+        save_json(DATA_FILE, data)
+    return redirect(url_for("admin_panel"))
+
+@app.route("/admin/clear_all")
 def clear_all():
-    save_payments([])
-    return jsonify({"status": "ok", "message": "Historial borrado"})
+    if "user" not in session:
+        return redirect(url_for("login"))
+    save_json(DATA_FILE, {})
+    return redirect(url_for("admin_panel"))
 
-# =========================================================
-# 🚀 TEST PAGE
-# =========================================================
-@app.route("/")
-def home():
-    return """
-    <html><body style='font-family:Arial;text-align:center;background:#111;color:#eee;padding:40px'>
-    <h2>💰 MP Notifier API</h2>
-    <p>Servidor funcionando correctamente ✅</p>
-    <p>Ejemplo: <a href='/api/payments?token=BLACKDOG-ESP32-LOCAL'>/api/payments?token=BLACKDOG-ESP32-LOCAL</a></p>
-    </body></html>
-    """
+# ===================== HTML =====================
 
-# =========================================================
-# 🏁 MAIN
-# =========================================================
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html><head><meta charset='UTF-8'>
+<title>Login MP Notifier</title>
+<style>
+body{background:#111;color:#eee;font-family:Arial;text-align:center;margin-top:80px}
+form{display:inline-block;padding:20px;background:#222;border-radius:10px}
+input{display:block;margin:10px auto;padding:8px;width:200px;border:none;border-radius:5px}
+button{background:#0f8;color:#000;padding:8px 20px;border:none;border-radius:6px;cursor:pointer}
+.error{color:#f44;margin-top:10px}
+</style></head><body>
+<h2>🔐 Iniciar sesión</h2>
+<form method='POST'>
+<input name='user' placeholder='Usuario'>
+<input type='password' name='password' placeholder='Contraseña'>
+<button type='submit'>Entrar</button>
+{% if error %}<div class='error'>{{error}}</div>{% endif %}
+</form>
+</body></html>
+"""
+
+ADMIN_HTML = """
+<!DOCTYPE html>
+<html><head><meta charset='UTF-8'>
+<title>Panel Admin - MP Notifier</title>
+<style>
+body{background:#111;color:#eee;font-family:Arial;text-align:center;padding:20px}
+table{width:95%;margin:auto;border-collapse:collapse}
+th,td{border:1px solid #444;padding:6px}
+th{background:#333;color:#0f8}
+tr:nth-child(even){background:#1a1a1a}
+a,button{color:#0f8;text-decoration:none}
+.logout{position:absolute;top:10px;right:20px}
+</style></head><body>
+<h2>💼 Panel de Administración</h2>
+<div class='logout'><a href='/logout'>Cerrar sesión</a></div>
+<p>Usuario: {{usuario}}</p>
+{% if negocios %}
+{% for token, transfers in negocios.items() %}
+<h3>{{token}}</h3>
+<a href='/admin/clear/{{token}}' onclick="return confirm('¿Borrar todas las transferencias de {{token}}?')">🗑️ Borrar este negocio</a>
+<table>
+<tr><th>Fecha</th><th>Monto</th><th>Nombre</th><th>Estado</th></tr>
+{% for t in transfers %}
+<tr><td>{{t.fecha}}</td><td>${{t.monto}}</td><td>{{t.nombre}}</td><td>{{t.estado}}</td></tr>
+{% endfor %}
+</table>
+{% endfor %}
+{% else %}
+<p>No hay transferencias registradas.</p>
+{% endif %}
+<br><br>
+<a href='/admin/clear_all' onclick="return confirm('¿Borrar TODO?')">🗑️ Borrar todo</a>
+</body></html>
+"""
+
+# ===================== MAIN =====================
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 10000)))
+    port = int(os.getenv("PORT", 10000))
+    print(f"🌐 Servidor iniciado en puerto {port}")
+    app.run(host="0.0.0.0", port=port)

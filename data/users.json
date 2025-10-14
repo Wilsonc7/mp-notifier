@@ -1,16 +1,15 @@
 {
   "admin": {
+    "password": "blackdog123",
     "role": "admin",
-    "name": "BlackDog Admin",
-    "password_hash": "",
-    "active": true
+    "name": "BlackDog Admin"
   },
   "BlackDog": {
+    "password": "1234",
     "role": "client",
     "name": "BlackDog Store",
     "token": "BlackDog-ESP32-LOCAL",
-    "mp_access_token": "REEMPLAZA_CON_ACCESS_TOKEN_DE_MP",
-    "password_hash": "",
-    "active": true
+    "active": true,
+    "mp_access_token": "APP_USR-TU_TOKEN_REAL"
   }
 }

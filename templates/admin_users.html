@@ -1,59 +1,59 @@
 {% extends "_base.html" %}
 {% block content %}
-<h1>Negocios</h1>
+<h2>Negocios</h2>
+
 <div class="card">
-  <form method="post">
-    <h2>Agregar / Editar</h2>
-    <div class="row">
-      <div class="col">
+  <h3>Agregar / Editar</h3>
+  <form method="POST" action="/admin/save">
+    <div class="grid2">
+      <div>
         <label>ID (clave única)</label>
-        <input name="id" placeholder="p.ej. BlackDog" value="{{ form.id or '' }}" required>
-      </div>
-      <div class="col">
-        <label>Nombre público</label>
-        <input name="name" placeholder="Nombre del negocio" value="{{ form.name or '' }}" required>
-      </div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <div class="col">
+        <input name="id" placeholder="p.ej. BlackDog">
         <label>Token (para el ESP32)</label>
-        <input name="token" placeholder="p.ej. BlackDog-ESP32-LOCAL" value="{{ form.token or '' }}" required>
-      </div>
-      <div class="col">
-        <label>Access Token de Mercado Pago</label>
-        <input name="mp_access_token" placeholder="APP_USR-..." value="{{ form.mp_access_token or '' }}" required>
-      </div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <div class="col">
+        <input name="token" placeholder="p.ej. BlackDog-ESP32-LOCAL">
         <label>Contraseña nueva (opcional)</label>
         <input name="password" type="password">
       </div>
-      <div class="col">
+      <div>
+        <label>Nombre público</label>
+        <input name="name" placeholder="Nombre del negocio">
+        <label>Access Token de Mercado Pago</label>
+        <input name="mp_access_token" placeholder="APP_USR-...">
         <label>Activo</label>
         <select name="active">
-          <option value="true" {{ 'selected' if (form.active is not defined or form.active==True) else '' }}>Sí</option>
-          <option value="false" {{ 'selected' if (form.active==False) else '' }}>No</option>
+          <option value="true">Sí</option>
+          <option value="false">No</option>
         </select>
       </div>
     </div>
-    <div style="margin-top:12px">
-      <button class="btn ok" type="submit">Guardar</button>
-    </div>
+    <button type="submit" class="btn ok">Guardar</button>
   </form>
 </div>
 
 <div class="card" style="margin-top:16px">
   <table>
-    <thead><tr><th>ID</th><th>Nombre</th><th>Token</th><th>Activo</th><th>Rol</th></tr></thead>
+    <thead><tr><th>ID</th><th>Nombre</th><th>Token</th><th>Activo</th><th>Rol</th><th>Acción</th></tr></thead>
     <tbody>
       {% for k,u in users.items() %}
         <tr>
           <td>{{ k }}</td>
           <td>{{ u.name }}</td>
           <td class="muted">{{ u.token or '-' }}</td>
-          <td>{% if u.active %}<span class="tag on">activo</span>{% else %}<span class="tag off">suspendido</span>{% endif %}</td>
+          <td>
+            {% if u.active %}
+              <span style="color:#00ff84;">🟢 Activo</span>
+            {% else %}
+              <span style="color:#ff3b3b;">🔴 Bloqueado</span>
+            {% endif %}
+          </td>
           <td>{{ u.role }}</td>
+          <td>
+            {% if u.active %}
+              <a class="btn warn" href="{{ url_for('admin_toggle', neg_id=k) }}">Desactivar</a>
+            {% else %}
+              <a class="btn ok" href="{{ url_for('admin_toggle', neg_id=k) }}">Activar</a>
+            {% endif %}
+          </td>
         </tr>
       {% endfor %}
     </tbody>

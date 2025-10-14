@@ -1,34 +1,50 @@
 {% extends "_base.html" %}
 {% block content %}
-<h1>Dashboard</h1>
-<div class="row">
-  <div class="col">
-    <div class="card">
-      <h2>Totales (Hoy)</h2>
-      <p><b>${{ daily.total|round(2) }}</b> — {{ daily.count }} pagos</p>
-    </div>
+<h2>Dashboard</h2>
+
+<!-- Estado de la cuenta -->
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+  {% if user.active %}
+    <span style="width:14px;height:14px;background:#00ff84;border-radius:50%;display:inline-block;"></span>
+    <span style="color:#00ff84;font-weight:bold;">Cuenta activa</span>
+  {% else %}
+    <span style="width:14px;height:14px;background:#ff3b3b;border-radius:50%;display:inline-block;"></span>
+    <span style="color:#ff3b3b;font-weight:bold;">Cuenta bloqueada</span>
+  {% endif %}
+</div>
+
+{% if not user.active %}
+<div class="alert warn" style="background:#400;color:#fff;padding:10px;border-radius:6px;margin-bottom:20px;">
+  ⚠️ Tu cuenta está actualmente bloqueada. Contactá con soporte <b>BlackDog</b> para más información.
+</div>
+{% endif %}
+
+<div class="grid3">
+  <div class="card">
+    <h3>Totales (Hoy)</h3>
+    <p><b>${{ totals.day.total }}</b> — {{ totals.day.count }} pagos</p>
   </div>
-  <div class="col">
-    <div class="card">
-      <h2>Totales (Semana)</h2>
-      <p><b>${{ weekly.total|round(2) }}</b> — {{ weekly.count }} pagos</p>
-    </div>
+  <div class="card">
+    <h3>Totales (Semana)</h3>
+    <p><b>${{ totals.week.total }}</b> — {{ totals.week.count }} pagos</p>
   </div>
-  <div class="col">
-    <div class="card">
-      <h2>Totales (Mes)</h2>
-      <p><b>${{ monthly.total|round(2) }}</b> — {{ monthly.count }} pagos</p>
-    </div>
+  <div class="card">
+    <h3>Totales (Mes)</h3>
+    <p><b>${{ totals.month.total }}</b> — {{ totals.month.count }} pagos</p>
   </div>
 </div>
 
-<div class="card" style="margin-top:16px">
-  <h2>Resumen por días (últimos 14)</h2>
+<div class="card" style="margin-top:20px;">
+  <h3>Resumen por días (últimos 14)</h3>
   <table>
     <thead><tr><th>Fecha</th><th>Monto</th><th>Cantidad</th></tr></thead>
     <tbody>
-      {% for d in daily_breakdown %}
-        <tr><td>{{ d.date }}</td><td>${{ d.total|round(2) }}</td><td>{{ d.count }}</td></tr>
+      {% for r in resumen %}
+        <tr>
+          <td>{{ r.fecha }}</td>
+          <td>${{ r.monto }}</td>
+          <td>{{ r.cantidad }}</td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>

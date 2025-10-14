@@ -107,8 +107,7 @@ def dashboard():
 
     headers = {"Authorization": f"Bearer {token_mp}"}
     now = datetime.datetime.now()
-    start_month = now.replace(day=1).isoformat()
-    url = f"https://api.mercadopago.com/v1/payments/search?status=approved&sort=date_created&criteria=desc"
+    url = "https://api.mercadopago.com/v1/payments/search?status=approved&sort=date_created&criteria=desc"
 
     try:
         r = requests.get(url, headers=headers, timeout=15)
@@ -210,6 +209,32 @@ def admin_toggle(neg_id):
     return redirect(url_for("admin_users"))
 
 # ======================================================
+#  CONFIGURACIÓN DE USUARIO / ADMIN (CAMBIAR CONTRASEÑA)
+# ======================================================
+@app.route("/config", methods=["GET", "POST"])
+@login_required
+def config_user():
+    user = current_user()
+    users = load_users()
+
+    if request.method == "POST":
+        old_pass = request.form.get("old_pass", "")
+        new_pass = request.form.get("new_pass", "")
+        confirm = request.form.get("confirm_pass", "")
+
+        if user["password"] != old_pass:
+            flash("Contraseña actual incorrecta ❌", "err")
+        elif new_pass != confirm or len(new_pass) < 4:
+            flash("Las contraseñas no coinciden o son demasiado cortas", "err")
+        else:
+            users[user["id"]]["password"] = new_pass
+            save_users(users)
+            flash("Contraseña actualizada correctamente ✅", "ok")
+            return redirect(url_for("dashboard"))
+
+    return render_template("config_user.html", user=user)
+
+# ======================================================
 #  API PARA ESP32
 # ======================================================
 @app.route("/api/status")
@@ -229,11 +254,9 @@ def api_payments():
         if u.get("token") == token:
             if not u.get("active", True):
                 return jsonify([])
-
             mp_token = u.get("mp_access_token", "")
             if not mp_token:
                 return jsonify([])
-
             headers = {"Authorization": f"Bearer {mp_token}"}
             url = "https://api.mercadopago.com/v1/payments/search?status=approved&sort=date_created&criteria=desc"
             try:

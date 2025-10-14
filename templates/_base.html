@@ -1,60 +1,161 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>{{ title or 'BlackDog MP Notifier' }}</title>
+  <meta charset="utf-8">
+  <title>BlackDog | MP Notifier</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    :root{--bg:#0f0f12;--card:#17181d;--text:#e6e6e6;--muted:#a8a8a8;--ok:#14d68f;--warn:#ffb020;--err:#ff5b5b;--link:#5cc8ff;}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,Segoe UI,Roboto,Ubuntu,sans-serif}
-    a{color:var(--link);text-decoration:none}
-    header{display:flex;gap:14px;align-items:center;padding:14px 20px;background:#121318;border-bottom:1px solid #23242b}
-    header img{height:28px;width:auto}
-    header .grow{flex:1}
-    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
-    .card{background:var(--card);border:1px solid #23242b;border-radius:12px;padding:18px}
-    .row{display:flex;gap:16px;flex-wrap:wrap}
-    .col{flex:1 1 320px}
-    h1{font-size:22px;margin:0 0 16px}
-    h2{font-size:18px;margin:0 0 12px;color:var(--muted)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:10px;border-bottom:1px solid #24252b}
-    th{color:#9bb4ff;text-align:left;background:#15161b}
-    .btn{display:inline-block;background:#2a2e39;border:1px solid #2f3340;color:#eaeaf0;padding:8px 12px;border-radius:8px}
-    .btn.ok{background:var(--ok);color:#001b10;border:none}
-    .btn.warn{background:var(--warn);border:none;color:#1c1300}
-    .btn.err{background:var(--err);border:none}
-    input,select{background:#0f1116;border:1px solid #2c2f3a;border-radius:8px;padding:9px 10px;color:#e6e6e6;width:100%}
-    .muted{color:var(--muted)}
-    .topbar a{margin-right:10px}
-    .flash{padding:10px 12px;border-radius:8px;margin:10px 0}
-    .flash.ok{background:#0f2a20;color:#8ff2c8;border:1px solid #1a3f31}
-    .flash.err{background:#2a0f13;color:#ffb4b8;border:1px solid #3d1c20}
-    .tag{padding:2px 8px;border-radius:999px;font-size:12px;border:1px solid #333}
-    .tag.on{background:#0f2a20;color:#8ff2c8;border-color:#1a3f31}
-    .tag.off{background:#2a0f13;color:#ffb4b8;border-color:#3d1c20}
+    :root {
+      --bg: #0d0d0d;
+      --panel: #1a1a1a;
+      --accent: #0f8;
+      --text: #eee;
+      --error: #c33;
+      --ok: #2d862d;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      height: 100vh;
+    }
+
+    /* --- LATERAL --- */
+    aside {
+      background: var(--panel);
+      width: 220px;
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 2px 0 10px #000;
+    }
+
+    aside img {
+      height: 60px;
+      margin-bottom: 10px;
+    }
+
+    aside h1 {
+      font-size: 1.1em;
+      color: var(--accent);
+      text-align: center;
+      margin: 0 0 20px 0;
+    }
+
+    nav {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
+
+    nav a {
+      color: var(--text);
+      text-decoration: none;
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin: 2px 5px;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+
+    nav a:hover {
+      background: var(--accent);
+      color: #000;
+    }
+
+    /* --- CONTENIDO --- */
+    main {
+      flex: 1;
+      padding: 20px 30px;
+      overflow-y: auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #111;
+      padding: 10px 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .flash {
+      margin-bottom: 15px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    .flash.ok { background: var(--ok); color: #fff; }
+    .flash.err { background: var(--error); color: #fff; }
+
+    h2 { color: var(--accent); }
+
+    .card {
+      background: var(--panel);
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+
+    input, select, button {
+      width: 100%;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      margin: 6px 0;
+    }
+
+    button {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #00cc88;
+    }
+
+    @media(max-width: 800px) {
+      aside { width: 70px; }
+      aside h1 { display: none; }
+      nav a { font-size: 0.9em; padding: 8px; text-align: center; }
+    }
   </style>
 </head>
+
 <body>
-<header>
-  <img src="{{ url_for('static', filename='logo.png') }}" alt="BlackDog">
-  <div class="grow"></div>
-  {% if g.user %}
-  <nav class="topbar">
-    <a href="{{ url_for('dashboard') }}">Dashboard</a>
-    <a href="{{ url_for('payments') }}">Pagos</a>
-    {% if g.user.role == 'admin' %}<a href="{{ url_for('admin_users') }}">Negocios</a>{% endif %}
-    <a href="{{ url_for('change_password') }}">Cambiar contraseña</a>
-    <a href="{{ url_for('logout') }}">Salir</a>
-  </nav>
-  {% endif %}
-</header>
-<div class="wrap">
-  {% for m,cat in get_flashed_messages(with_categories=true) %}
-    <div class="flash {{ 'ok' if cat=='ok' else 'err' }}">{{ m }}</div>
-  {% endfor %}
-  {% block content %}{% endblock %}
-  <p class="muted" style="margin-top:28px">Powered by <b>BlackDog</b></p>
-</div>
+  <aside>
+    <img src="{{ url_for('static', filename='img/ic_launcher.png') }}" alt="BlackDog">
+    <h1>MP Notifier</h1>
+    <nav>
+      <a href="{{ url_for('dashboard') }}">📊 Panel</a>
+      {% if user and user.role == 'admin' %}
+        <a href="{{ url_for('admin_users') }}">👤 Negocios</a>
+      {% endif %}
+      <a href="{{ url_for('config_user') }}">⚙️ Configuración</a>
+      <a href="{{ url_for('logout') }}">🚪 Salir</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header>
+      <div>Bienvenido, <b>{{ user.name if user else 'Invitado' }}</b></div>
+      {% if user %}
+        <div style="font-size:0.9em;color:#888;">Rol: {{ user.role|capitalize }}</div>
+      {% endif %}
+    </header>
+
+    {% for cat, msg in get_flashed_messages(with_categories=True) %}
+      <div class="flash {{ cat }}">{{ msg }}</div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+  </main>
 </body>
 </html>

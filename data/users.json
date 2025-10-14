@@ -1,0 +1,16 @@
+{
+  "admin": {
+    "role": "admin",
+    "name": "BlackDog Admin",
+    "password_hash": "",
+    "active": true
+  },
+  "BlackDog": {
+    "role": "client",
+    "name": "BlackDog Store",
+    "token": "BlackDog-ESP32-LOCAL",
+    "mp_access_token": "REEMPLAZA_CON_ACCESS_TOKEN_DE_MP",
+    "password_hash": "",
+    "active": true
+  }
+}

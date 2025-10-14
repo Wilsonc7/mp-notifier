@@ -2,6 +2,9 @@ services:
   - type: web
     name: mp-notifier
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app
     plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python server.py"
+    envVars:
+      - key: SECRET_KEY
+        value: "cambia-esto-por-una-clave-larga-y-segura"

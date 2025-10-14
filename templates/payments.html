@@ -1,0 +1,22 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Pagos recientes</h1>
+<div class="card">
+  <table>
+    <thead>
+      <tr><th>Fecha</th><th>Monto</th><th>Nombre</th><th>Estado</th><th>ID</th></tr>
+    </thead>
+    <tbody>
+      {% for p in payments %}
+        <tr>
+          <td>{{ p.fecha }}</td>
+          <td>${{ p.monto }}</td>
+          <td>{{ p.nombre or 'Desconocido' }}</td>
+          <td>{{ p.estado }}</td>
+          <td class="muted">{{ p.id }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

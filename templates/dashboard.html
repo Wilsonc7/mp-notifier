@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% block content %}
+<h1>Dashboard</h1>
+<div class="row">
+  <div class="col">
+    <div class="card">
+      <h2>Totales (Hoy)</h2>
+      <p><b>${{ daily.total|round(2) }}</b> — {{ daily.count }} pagos</p>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card">
+      <h2>Totales (Semana)</h2>
+      <p><b>${{ weekly.total|round(2) }}</b> — {{ weekly.count }} pagos</p>
+    </div>
+  </div>
+  <div class="col">
+    <div class="card">
+      <h2>Totales (Mes)</h2>
+      <p><b>${{ monthly.total|round(2) }}</b> — {{ monthly.count }} pagos</p>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+  <h2>Resumen por días (últimos 14)</h2>
+  <table>
+    <thead><tr><th>Fecha</th><th>Monto</th><th>Cantidad</th></tr></thead>
+    <tbody>
+      {% for d in daily_breakdown %}
+        <tr><td>{{ d.date }}</td><td>${{ d.total|round(2) }}</td><td>{{ d.count }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

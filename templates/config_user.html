@@ -1,12 +1,8 @@
 {% extends "_base.html" %}
-{% block title %}Configuración{% endblock %}
 {% block content %}
-<h2>⚙️ Configuración</h2>
-
-<p><b>Usuario:</b> {{ user.name }}</p>
+<h2>⚙ Configuración del Usuario</h2>
+<p><b>Nombre:</b> {{ user.name }}</p>
 <p><b>Token:</b> {{ user.token }}</p>
-<p><b>Estado:</b> {% if user.active %}🟢 Activo{% else %}🔴 Bloqueado{% endif %}</p>
-
-<hr>
-<a href="/change_password" class="btn">Cambiar Contraseña</a>
+<p><b>Rol:</b> {{ user.role }}</p>
+<p><b>Estado:</b> {{ 'Activo' if user.active else 'Bloqueado' }}</p>
 {% endblock %}

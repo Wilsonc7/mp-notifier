@@ -1,32 +1,99 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>{% block title %}BlackDog{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title or "Panel - BlackDog Systems" }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #0a0a0a;
+            color: #eee;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background: #111;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+        }
+        header img {
+            height: 42px;
+        }
+        nav a {
+            color: #0f8;
+            margin: 0 10px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        nav a:hover {
+            color: #fff;
+        }
+        footer {
+            text-align: center;
+            padding: 15px;
+            font-size: 13px;
+            background: #111;
+            margin-top: 20px;
+            color: #aaa;
+        }
+        .container {
+            padding: 25px;
+            max-width: 900px;
+            margin: auto;
+        }
+        .btn {
+            padding: 8px 14px;
+            background: #0f8;
+            color: #000;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+        }
+        .btn-danger {
+            background: #d33;
+            color: #fff;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background: #222;
+        }
+    </style>
 </head>
 <body>
-  <header>
-    <div class="logo">
-      <img src="/static/img/ic_launcher.png" height="40">
-      <h2>BlackDog Panel</h2>
+    <header>
+        <img src="{{ url_for('static', filename='img/ic_launcher.png') }}" alt="BlackDog Systems">
+        <nav>
+            {% if session.get("user_id") %}
+                <a href="/dashboard">📊 Panel</a>
+                <a href="/config">⚙ Configuración</a>
+                <a href="/change_password">🔑 Contraseña</a>
+                <a href="/logout">🚪 Salir</a>
+            {% endif %}
+        </nav>
+    </header>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
     </div>
-    <nav>
-      {% if session['user_id'] %}
-      <a href="/dashboard">🏠 Inicio</a>
-      <a href="/change_password">🔒 Contraseña</a>
-      <a href="/config">⚙️ Configuración</a>
-      <a href="/logout" class="logout">🚪 Salir</a>
-      {% endif %}
-    </nav>
-  </header>
 
-  <main>
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer>
-    <p>© {{ datetime.utcnow().year }} BlackDog Systems — Panel de Monitoreo</p>
-  </footer>
+    <footer>
+        © {{ datetime.utcnow().year }} BlackDog Systems — 
+        Última actualización {{ localtime.strftime('%H:%M') }} 
+    </footer>
 </body>
 </html>

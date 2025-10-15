@@ -1,9 +1,5 @@
 {% extends "_base.html" %}
-{% block title %}Error {{ code }}{% endblock %}
 {% block content %}
-<div style="text-align:center; padding:60px;">
-  <h1 style="color:orange;">⚠️ Error {{ code }}</h1>
-  <h3>{{ msg }}</h3>
-  <a href="/" class="btn">Volver</a>
-</div>
+<h2 style="color:red;">Error {{ code }}</h2>
+<p>{{ msg }}</p>
 {% endblock %}

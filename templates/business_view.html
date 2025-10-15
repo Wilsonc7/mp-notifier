@@ -1,32 +1,22 @@
 {% extends "_base.html" %}
-{% block title %}Dashboard Negocio{% endblock %}
 {% block content %}
-<h2>{{ negocio.name }}</h2>
-<p><b>Token:</b> {{ negocio.token }}</p>
-<p><b>Estado:</b>
-  {% if negocio.active %}<span style="color:lime;">Activo</span>
-  {% else %}<span style="color:red;">Bloqueado</span>{% endif %}
-</p>
+<h2>💰 Panel del Negocio</h2>
+<h3>{{ negocio.name }}</h3>
 
-<div class="metrics">
-  <div class="card"><h4>Hoy</h4><p>${{ total_hoy }}</p></div>
-  <div class="card"><h4>Semana</h4><p>${{ total_semana }}</p></div>
-  <div class="card"><h4>Mes</h4><p>${{ total_mes }}</p></div>
-</div>
+<p><b>Total hoy:</b> ${{ "%.2f"|format(total_hoy) }}<br>
+<b>Total semana:</b> ${{ "%.2f"|format(total_semana) }}<br>
+<b>Total mes:</b> ${{ "%.2f"|format(total_mes) }}</p>
 
-<hr>
-<h3>📅 Pagos recientes</h3>
-<table class="styled-table">
-  <thead><tr><th>Fecha</th><th>Monto</th></tr></thead>
-  <tbody>
-  {% for p in pagos|reverse %}
+<h3>Historial de Pagos</h3>
+<table>
+    <tr><th>Fecha</th><th>Monto</th></tr>
+    {% for p in pagos %}
     <tr>
-      <td>{{ p.fecha.split('T')[0] }}</td>
-      <td>${{ p.monto }}</td>
+        <td>{{ p.fecha[:19].replace('T', ' ') }}</td>
+        <td>${{ "%.2f"|format(p.monto) }}</td>
     </tr>
-  {% else %}
-    <tr><td colspan="2">Sin pagos registrados.</td></tr>
-  {% endfor %}
-  </tbody>
+    {% else %}
+    <tr><td colspan="2">Sin pagos registrados</td></tr>
+    {% endfor %}
 </table>
 {% endblock %}

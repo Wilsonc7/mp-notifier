@@ -1,34 +1,30 @@
 {% extends "_base.html" %}
-{% block title %}Panel Administrador{% endblock %}
 {% block content %}
-<h2>👑 Panel de Administrador</h2>
+<h2>📋 Panel del Administrador</h2>
+<p>Bienvenido, {{ user.get("name", "Administrador") }}</p>
 
-<a href="/admin/users" class="btn">📋 Gestionar Negocios</a>
+<a class="btn" href="/admin/users">➕ Agregar o editar negocios</a>
 
-<hr>
-<h3>Negocios registrados</h3>
-
-<table class="styled-table">
-  <thead>
-    <tr><th>Nombre</th><th>Token</th><th>Estado</th><th>Acción</th></tr>
-  </thead>
-  <tbody>
-  {% for n in negocios %}
+<table>
     <tr>
-      <td>{{ n.name }}</td>
-      <td>{{ n.token }}</td>
-      <td>
-        {% if n.active %}
-          <span style="color:lime;">Activo</span>
-        {% else %}
-          <span style="color:red;">Bloqueado</span>
-        {% endif %}
-      </td>
-      <td><a href="/admin/toggle/{{ n.id }}">🔁 Cambiar</a></td>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Token</th>
+        <th>Estado</th>
+        <th>Acción</th>
     </tr>
-  {% else %}
-    <tr><td colspan="4">Sin negocios registrados</td></tr>
-  {% endfor %}
-  </tbody>
+    {% for u in negocios %}
+    <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.name }}</td>
+        <td>{{ u.token }}</td>
+        <td style="color: {{ 'lime' if u.active else 'red' }};">
+            {{ 'Activo' if u.active else 'Bloqueado' }}
+        </td>
+        <td>
+            <a class="btn btn-danger" href="/admin/toggle/{{ u.id }}">🔁 Cambiar estado</a>
+        </td>
+    </tr>
+    {% endfor %}
 </table>
 {% endblock %}

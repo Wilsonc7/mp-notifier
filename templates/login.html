@@ -1,11 +1,14 @@
 {% extends "_base.html" %}
-{% block title %}Iniciar Sesión{% endblock %}
 {% block content %}
-<h2>🔑 Iniciar Sesión</h2>
-{% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
-<form method="POST" class="form-card">
-  <label>ID:</label><input name="id" required>
-  <label>Contraseña:</label><input name="password" type="password" required>
-  <button type="submit">➡️ Entrar</button>
+<h2>🔐 Iniciar sesión</h2>
+
+{% if error %}
+<p style="color:red;">{{ error }}</p>
+{% endif %}
+
+<form method="POST">
+    <input type="text" name="id" placeholder="Usuario" required><br><br>
+    <input type="password" name="password" placeholder="Contraseña" required><br><br>
+    <button class="btn">Ingresar</button>
 </form>
 {% endblock %}

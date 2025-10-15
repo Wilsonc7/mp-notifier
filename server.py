@@ -195,20 +195,15 @@ def logout():
     return redirect("/login")
 
 # ============================================================
-# 🖥️ DASHBOARD
+# 📊 DASHBOARD
 # ============================================================
-@app.route("/")
-def home():
-    if is_logged_in():
-        return redirect("/dashboard")
-    return redirect("/login")
-
 @app.route("/dashboard")
 def dashboard():
     if not is_logged_in():
         return redirect("/login")
 
     users = load_json(USERS_FILE, {})
+    payments = load_json(PAYMENTS_FILE, {})
     user_id = session["user_id"]
     role = session.get("role", "client")
 
@@ -221,17 +216,31 @@ def dashboard():
         return render_template("admin_dashboard.html", user=users[user_id], negocios=negocios)
 
     negocio = users.get(user_id)
+    if not negocio:
+        return render_template("error.html", code=403, msg="Usuario no encontrado")
+
     token = negocio.get("token")
-    pagos = get_payments_by_token(token)
+    pagos = payments.get(token, [])
+
+    # ✅ Evitar errores si no hay pagos todavía
+    if not pagos:
+        return render_template("business_view.html",
+                               negocio=negocio,
+                               total_hoy=0,
+                               total_semana=0,
+                               total_mes=0,
+                               pagos=[])
 
     hoy = datetime.now().date()
-    total_hoy = sum(p["monto"] for p in pagos if p["fecha_local"][:10] == str(hoy))
-    total_total = sum(p["monto"] for p in pagos)
+    total_hoy = sum(p["monto"] for p in pagos if p["fecha"][:10] == str(hoy))
+    total_semana = sum(p["monto"] for p in pagos)
+    total_mes = total_semana
 
     return render_template("business_view.html",
                            negocio=negocio,
                            total_hoy=total_hoy,
-                           total_total=total_total,
+                           total_semana=total_semana,
+                           total_mes=total_mes,
                            pagos=pagos)
 
 # ============================================================

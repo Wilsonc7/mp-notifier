@@ -2,7 +2,7 @@
 #  BlackDog Systems - Server (Secure Edition)
 # ==========================
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from flask import Flask, render_template, request, redirect, jsonify, session
 from datetime import datetime
 from pytz import timezone
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -12,10 +12,10 @@ import os
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "blackdog-super-secret")
 
-# Cookies seguras (en local puedes desactivar SECURE si hace falta)
+# Cookies seguras
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True     # Render usa HTTPS
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
-app.config["SESSION_COOKIE_SECURE"] = os.getenv("SESSION_COOKIE_SECURE", "true").lower() == "true"
 
 # ============================================================
 # 🔧 Inyectar datetime en todas las plantillas
@@ -27,13 +27,12 @@ def inject_datetime():
     return {"datetime": datetime, "localtime": now_local}
 
 # ============================================================
-# 📁 Utilidades JSON
+# 📁 Funciones JSON
 # ============================================================
 def load_json(path, default):
     if not os.path.exists(path):
-        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(default, f, indent=4, ensure_ascii=False)
+            json.dump(default, f, indent=4)
         return default
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -42,75 +41,23 @@ def load_json(path, default):
         return default
 
 def save_json(path, data):
-    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 # ============================================================
 # 📂 Archivos
 # ============================================================
+os.makedirs("data", exist_ok=True)
 USERS_FILE = "data/users.json"
 PAYMENTS_FILE = "data/payments.json"
 
 # ============================================================
-# 🔐 Password helpers (compatibilidad con planos + hash)
-# ============================================================
-def is_hashed(pw: str) -> bool:
-    return isinstance(pw, str) and pw.startswith("pbkdf2:")
-
-def ensure_admin_user():
-    """Crea/normaliza admin si no existe. No pisa contraseñas existentes."""
-    users = load_json(USERS_FILE, {})
-    admin = users.get("admin")
-    if not admin:
-        users["admin"] = {
-            "password": generate_password_hash(os.getenv("ADMIN_PASSWORD", "admin123")),
-            "role": "admin",
-            "active": True,
-            "name": "Administrador",
-            "token": "ADMIN-NO-TOKEN"
-        }
-        save_json(USERS_FILE, users)
-    else:
-        # Asegura campos mínimos
-        admin.setdefault("role", "admin")
-        admin.setdefault("active", True)
-        admin.setdefault("name", "Administrador")
-        admin.setdefault("token", "ADMIN-NO-TOKEN")
-        if not is_hashed(admin.get("password", "")):
-            # Si quedó en texto plano, lo rehashéo para endurecer
-            plain = admin["password"]
-            admin["password"] = generate_password_hash(plain)
-            save_json(USERS_FILE, users)
-
-def check_user_password(stored_pw: str, candidate: str) -> bool:
-    """Permite login tanto si el JSON tiene hash como si tiene texto plano.
-       Si coincide en plano, re-hashea y persiste automáticamente."""
-    if not stored_pw:
-        return False
-    if is_hashed(stored_pw):
-        return check_password_hash(stored_pw, candidate)
-    # Texto plano
-    if stored_pw == candidate:
-        # Auto-migración a hash
-        users = load_json(USERS_FILE, {})
-        uid = session.get("user_id_temp_for_migration")
-        # Solo puedo migrar si tengo el uid temporal cargado en el login
-        if uid and uid in users:
-            users[uid]["password"] = generate_password_hash(candidate)
-            save_json(USERS_FILE, users)
-        return True
-    return False
-
-ensure_admin_user()
-
-# ============================================================
 # 🧠 Utilidades de sesión
 # ============================================================
-def is_logged_in():
+def is_logged_in(): 
     return "user_id" in session
 
-def is_admin():
+def is_admin(): 
     return session.get("role") == "admin"
 
 # ============================================================
@@ -138,18 +85,14 @@ def login():
 
         user_id, user = None, None
         for uid, info in users.items():
-            if uid == user_input or info.get("token") == user_input:
+            if uid.lower() == user_input.lower() or info.get("token", "").lower() == user_input.lower():
                 user_id, user = uid, info
                 break
 
-        if user and user.get("active", True):
-            # Guardamos uid temporal para migración a hash si hace falta
-            session["user_id_temp_for_migration"] = user_id
-            if check_user_password(user.get("password", ""), password):
-                session.pop("user_id_temp_for_migration", None)
-                session["user_id"] = user_id
-                session["role"] = user.get("role", "client")
-                return redirect("/dashboard")
+        if user and user.get("active", True) and check_password_hash(user["password"], password):
+            session["user_id"] = user_id
+            session["role"] = user.get("role", "client")
+            return redirect("/dashboard")
 
         return render_template("login.html", error="Credenciales inválidas o cuenta bloqueada")
 
@@ -176,19 +119,10 @@ def dashboard():
     if role == "admin":
         negocios = []
         for uid, info in users.items():
-            # excluye admin
             if info.get("role") != "admin":
-                item = dict(info)
-                item["id"] = uid
-                # Valores por defecto para evitar template errors
-                item.setdefault("name", uid)
-                item.setdefault("token", "")
-                item.setdefault("active", False)
-                negocios.append(item)
-        return render_template("admin_dashboard.html",
-                               user=users.get(user_id, {}),
-                               user_id=user_id,
-                               negocios=negocios)
+                info["id"] = uid
+                negocios.append(info)
+        return render_template("admin_dashboard.html", user=users[user_id], negocios=negocios)
 
     negocio = users.get(user_id)
     if not negocio:
@@ -198,9 +132,8 @@ def dashboard():
     pagos = payments.get(token, [])
 
     hoy = datetime.now().date()
-    total_hoy = sum(p.get("monto", 0) for p in pagos if p.get("fecha", "")[:10] == str(hoy))
-    # En esta versión, semana/mes = total acumulado (ajústalo si quieres ventanas reales)
-    total_semana = sum(p.get("monto", 0) for p in pagos)
+    total_hoy = sum(p["monto"] for p in pagos if p["fecha"][:10] == str(hoy))
+    total_semana = sum(p["monto"] for p in pagos)
     total_mes = total_semana
 
     return render_template("business_view.html",
@@ -238,34 +171,26 @@ def admin_users():
     users = load_json(USERS_FILE, {})
 
     if request.method == "POST":
-        id_ = request.form.get("id", "").strip()
+        id = request.form.get("id", "").strip()
         token = request.form.get("token", "").strip()
         name = request.form.get("name", "").strip()
         password = request.form.get("password", "").strip()
         active = request.form.get("active") == "Sí"
 
-        if not id_ or not name:
+        if not id or not name:
             return render_template("error.html", code=400, msg="Datos inválidos")
 
-        # Si no existe o mandaron nueva contraseña => hashear
-        if id_ not in users or password:
-            password_hash = generate_password_hash(password if password else "1234")
+        if id not in users or password:
+            password_hash = generate_password_hash(password)
         else:
-            password_hash = users[id_].get("password", generate_password_hash("1234"))
+            password_hash = users[id]["password"]
 
-        # Evita pisar admins
-        role = users.get(id_, {}).get("role", "client")
-        if role == "admin":
-            role = "admin"
-        else:
-            role = "client"
-
-        users[id_] = {
+        users[id] = {
             "password": password_hash,
             "token": token,
             "name": name,
             "active": active,
-            "role": role
+            "role": "client"
         }
         save_json(USERS_FILE, users)
 
@@ -301,9 +226,8 @@ def admin_business_detail(user_key):
     token = negocio.get("token")
     movimientos = payments.get(token, [])
 
-    hoy_str = str(datetime.now().date())
-    total_hoy = sum(p.get("monto", 0) for p in movimientos if p.get("fecha", "")[:10] == hoy_str)
-    total_semana = sum(p.get("monto", 0) for p in movimientos)
+    total_hoy = sum(p["monto"] for p in movimientos if p["fecha"][:10] == str(datetime.now().date()))
+    total_semana = sum(p["monto"] for p in movimientos)
     total_mes = total_semana
 
     return render_template("business_detail.html",
@@ -326,12 +250,10 @@ def change_password():
     msg = ""
 
     if request.method == "POST":
-        old = request.form.get("old", "")
-        new = request.form.get("new", "")
+        old = request.form.get("old")
+        new = request.form.get("new")
 
-        if not new:
-            msg = "La nueva contraseña no puede estar vacía ❌"
-        elif check_user_password(user.get("password", ""), old):
+        if check_password_hash(user["password"], old):
             user["password"] = generate_password_hash(new)
             save_json(USERS_FILE, users)
             msg = "Contraseña cambiada correctamente ✅"
@@ -345,7 +267,6 @@ def change_password():
 # ============================================================
 @app.route("/api/add_payment")
 def add_payment():
-    """Registra un pago con los campos que espera el ESP32."""
     token = request.args.get("token")
     monto = request.args.get("monto")
     nombre = request.args.get("nombre", "Cliente")
@@ -358,21 +279,19 @@ def add_payment():
     if token not in payments:
         payments[token] = []
 
-    # ID simple incremental por token
-    new_id = f"{token}-{len(payments[token]) + 1}"
-
-    payment = {
-        "id": new_id,
+    pago = {
+        "id": f"{token}-" + str(len(payments[token]) + 1),
         "estado": estado,
         "nombre": nombre,
         "monto": float(monto),
-        "fecha": datetime.now().isoformat(),            # ISO UTC
-        "fecha_local": datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # legible
+        "fecha": datetime.now().isoformat(),
+        "fecha_local": datetime.now(timezone("America/Argentina/Cordoba")).strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    payments[token].append(payment)
+    payments[token].append(pago)
     save_json(PAYMENTS_FILE, payments)
-    return jsonify({"status": "ok", "msg": "Pago registrado", "pago": payment})
+
+    return jsonify({"status": "ok", "msg": "Pago registrado", "pago": pago})
 
 @app.route("/api/payments")
 def api_payments():
@@ -381,32 +300,27 @@ def api_payments():
         return jsonify({"error": "Token requerido"}), 400
 
     users = load_json(USERS_FILE, {})
-    negocio = next((u for u in users.values() if u.get("token") == token), None)
+    negocio = next((u for u in users.values() if u.get("token", "").lower() == token.lower()), None)
+
     if not negocio:
         return jsonify({"error": "Negocio no encontrado"}), 404
 
-    payments = load_json(PAYMENTS_FILE, {}).get(token, [])
-    return jsonify({"negocio": negocio.get("name", ""), "pagos": payments})
+    payments = load_json(PAYMENTS_FILE, {}).get(negocio["token"], [])
+    return jsonify({"negocio": negocio["name"], "pagos": payments})
 
 # ============================================================
 # 🧱 ERRORES
 # ============================================================
 @app.errorhandler(403)
-def _403(_e):
-    return render_template("forbidden.html"), 403
-
+def _403(_e): return render_template("forbidden.html"), 403
 @app.errorhandler(404)
-def _404(_e):
-    return render_template("error.html", code=404, msg="No encontrado"), 404
-
+def _404(_e): return render_template("error.html", code=404, msg="No encontrado"), 404
 @app.errorhandler(500)
-def _500(_e):
-    return render_template("error.html", code=500, msg="Error interno"), 500
+def _500(_e): return render_template("error.html", code=500, msg="Error interno"), 500
 
 # ============================================================
 # 🚀 MAIN
 # ============================================================
 if __name__ == "__main__":
-    # Para desarrollo local puedes exportar:  set SESSION_COOKIE_SECURE=false
     port = int(os.getenv("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)

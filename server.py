@@ -175,6 +175,38 @@ def toggle_user(user_id):
         users[user_id]["active"] = not users[user_id].get("active", True)
         save_json(USERS_FILE, users)
     return redirect("/admin/users")
+    # ============================================================
+# 🧾 ADMIN: DETALLE DE UN NEGOCIO (solo lectura)
+# ============================================================
+@app.route("/admin/business/<user_id>")
+def admin_business_detail(user_id):
+    if not is_logged_in() or not is_admin():
+        return render_template("forbidden.html"), 403
+
+    users = load_json(USERS_FILE, {})
+    payments = load_json(PAYMENTS_FILE, {})
+
+    negocio = users.get(user_id)
+    if not negocio:
+        return render_template("error.html", code=404, msg="Negocio no encontrado")
+
+    token = negocio.get("token")
+    movimientos = payments.get(token, [])
+
+    # Totales
+    total_hoy = sum(p["monto"] for p in movimientos if p["fecha"][:10] == str(datetime.now().date()))
+    total_semana = sum(p["monto"] for p in movimientos)
+    total_mes = total_semana  # En esta versión son iguales, podés ampliarlo luego
+
+    return render_template(
+        "business_detail.html",
+        negocio=negocio,
+        movimientos=movimientos,
+        total_hoy=total_hoy,
+        total_semana=total_semana,
+        total_mes=total_mes
+    )
+
 
 # ============================================================
 # 🔒 CAMBIO DE CONTRASEÑA

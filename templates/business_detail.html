@@ -1,0 +1,57 @@
+{% extends "_base.html" %}
+{% block content %}
+<div class="container mt-5 text-center">
+    <h3 class="text-light mb-4">🏪 Detalle del Negocio</h3>
+
+    <div class="card bg-dark text-light mb-4">
+        <div class="card-body">
+            <h5 class="card-title">{{ negocio.name }}</h5>
+            <p><strong>ID:</strong> {{ negocio.id }}</p>
+            <p><strong>Token:</strong> {{ negocio.token }}</p>
+            <p><strong>Estado:</strong>
+                {% if negocio.active %}
+                    <span class="text-success fw-bold">Activo</span>
+                {% else %}
+                    <span class="text-danger fw-bold">Inactivo</span>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="stats mb-4">
+        <div class="card bg-dark text-light p-3 mb-3">
+            <p>💰 Total del día: <strong class="text-success">${{ "%.2f"|format(total_hoy) }}</strong></p>
+            <p>📈 Total de la semana: <strong class="text-info">${{ "%.2f"|format(total_semana) }}</strong></p>
+            <p>📆 Total del mes: <strong class="text-warning">${{ "%.2f"|format(total_mes) }}</strong></p>
+        </div>
+    </div>
+
+    <h4 class="text-light mb-3">📊 Movimientos recientes</h4>
+    <div class="table-responsive">
+        <table class="table table-dark table-bordered align-middle">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in movimientos %}
+                <tr>
+                    <td>{{ loop.index }}</td>
+                    <td>{{ p.fecha }}</td>
+                    <td class="text-success">${{ p.monto }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="3" class="text-muted">Sin movimientos registrados.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <a href="/dashboard" class="btn btn-secondary mt-3">⬅ Volver al panel</a>
+</div>
+{% endblock %}

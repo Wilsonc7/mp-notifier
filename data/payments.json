@@ -1,6 +1,16 @@
-{
-  "BlackDog-ESP32-LOCAL": [
-    { "monto": 1000, "fecha": "2025-10-13T14:35:00" },
-    { "monto": 1500, "fecha": "2025-10-14T09:12:00" }
-  ]
-}
+[
+  {
+    "id": "1",
+    "token": "BlackDog-ESP32-LOCAL",
+    "fecha": "hoy 15/10/2025",
+    "descripcion": "Pago recibido por alarma comunitaria",
+    "monto": "2500.00"
+  },
+  {
+    "id": "2",
+    "token": "BlackDog-ESP32-LOCAL",
+    "fecha": "esta semana 13/10/2025",
+    "descripcion": "Recaudación semanal",
+    "monto": "12500.00"
+  }
+]

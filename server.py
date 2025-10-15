@@ -65,10 +65,10 @@ def save_json(path, data):
 # ============================================================
 # 🧠 Sesión y roles
 # ============================================================
-def is_logged_in():
+def is_logged_in(): 
     return "user_id" in session
 
-def is_admin():
+def is_admin(): 
     return session.get("role") == "admin"
 
 # ============================================================
@@ -131,9 +131,7 @@ def fetch_movements_for_business(name, access_token):
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
             data = r.json()
-            results = data.get("results", [])
-            print(f"[MP] {name}: {len(results)} movimientos encontrados.")
-            for mov in results:
+            for mov in data.get("results", []):
                 if mov.get("type") in ["credited", "accredited"]:
                     pago = {
                         "id": mov.get("id", str(time.time())),
@@ -144,7 +142,7 @@ def fetch_movements_for_business(name, access_token):
                     }
                     add_payment(name, pago)
         else:
-            print(f"[MP] {name} → Error HTTP {r.status_code}")
+            print(f"[MP] {name} → Error {r.status_code}")
     except Exception as e:
         print(f"[MP] {name} → Fallo conexión:", e)
 
@@ -155,7 +153,7 @@ def polling_thread():
     while True:
         users = load_json(USERS_FILE, {})
         for user, info in users.items():
-            if not info.get("active"):
+            if not info.get("active"): 
                 continue
             access_token = decrypt_token(info.get("mp_access_token", ""))
             if access_token:
@@ -222,9 +220,8 @@ def dashboard():
 
     token = negocio.get("token")
     pagos = get_payments_by_token(token)
-
     hoy = datetime.now().date()
-    total_hoy = sum(p["monto"] for p in pagos if str(hoy) in p["fecha_local"])
+    total_hoy = sum(p["monto"] for p in pagos if p["fecha_local"][:10] == str(hoy))
     total_semana = sum(p["monto"] for p in pagos)
     total_mes = total_semana
 
@@ -255,7 +252,10 @@ def admin_users():
         if not id or not name:
             return render_template("error.html", code=400, msg="Datos incompletos")
 
-        pw_hash = generate_password_hash(password) if password else users.get(id, {}).get("password", "")
+        if id not in users or password:
+            pw_hash = generate_password_hash(password)
+        else:
+            pw_hash = users[id]["password"]
 
         users[id] = {
             "password": pw_hash,
@@ -282,41 +282,22 @@ def api_payments():
     return jsonify({"negocio": token, "pagos": pagos})
 
 # ============================================================
-# 🧪 TEST: Verificar conexión con Mercado Pago
-# ============================================================
-@app.route("/api/test_mp")
-def test_mp():
-    user_id = request.args.get("user_id", "")
-    users = load_json(USERS_FILE, {})
-    if user_id not in users:
-        return jsonify({"error": "Usuario no encontrado"}), 404
-
-    info = users[user_id]
-    access_token = decrypt_token(info.get("mp_access_token", ""))
-    if not access_token:
-        return jsonify({"error": "Access token no disponible"}), 400
-
-    url = "https://api.mercadopago.com/v1/account/movements"
-    headers = {"Authorization": f"Bearer {access_token}"}
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        return jsonify({"status_code": r.status_code, "data": r.json()})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ============================================================
-# 🏠 INICIO
-# ============================================================
-@app.route("/")
-def home():
-    if is_logged_in():
-        return redirect("/dashboard")
-    return redirect("/login")
-
-# ============================================================
-# 🚀 EJECUCIÓN
+# 🚀 INICIO
 # ============================================================
 if __name__ == "__main__":
+    # 🔧 Forzar restauración del users.json si está vacío o no existe
+    if not os.path.exists(USERS_FILE) or os.path.getsize(USERS_FILE) == 0:
+        save_json(USERS_FILE, {
+            "admin": {
+                "password": generate_password_hash("blackdog2025"),
+                "role": "admin",
+                "name": "BlackDog Admin",
+                "token": "BLACKDOG-ADMIN-LOCAL",
+                "active": True
+            }
+        })
+        print("[INIT] Archivo users.json restaurado con credenciales admin / blackdog2025")
+
     init_db()
     threading.Thread(target=polling_thread, daemon=True).start()
     port = int(os.getenv("PORT", 5000))

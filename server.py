@@ -1,24 +1,21 @@
 # ==========================
-#  BlackDog Systems - Server
+#  BlackDog Systems - Server (Secure Edition)
 # ==========================
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from datetime import datetime
 from pytz import timezone
+from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "blackdog-secret-key")
-# ============================================================
-# 🔧 Inyectar datetime en todas las plantillas
-# ============================================================
-@app.context_processor
-def inject_datetime():
-    tz = timezone("America/Argentina/Cordoba")
-    now_local = datetime.now(tz)
-    return {"datetime": datetime, "localtime": now_local}
+app.secret_key = os.getenv("SECRET_KEY", "blackdog-super-secret")
 
+# Cookies seguras
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True     # Render usa HTTPS
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # ============================================================
 # 🔧 Inyectar datetime en todas las plantillas
@@ -50,15 +47,18 @@ def save_json(path, data):
 # ============================================================
 # 📂 Archivos
 # ============================================================
+os.makedirs("data", exist_ok=True)
 USERS_FILE = "data/users.json"
 PAYMENTS_FILE = "data/payments.json"
-os.makedirs("data", exist_ok=True)
 
 # ============================================================
 # 🧠 Utilidades de sesión
 # ============================================================
-def is_logged_in(): return "user_id" in session
-def is_admin(): return session.get("role") == "admin"
+def is_logged_in(): 
+    return "user_id" in session
+
+def is_admin(): 
+    return session.get("role") == "admin"
 
 # ============================================================
 # 🏠 Inicio
@@ -75,19 +75,21 @@ def home():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     users = load_json(USERS_FILE, {})
-    if request.method == "POST":
-        user_input = request.form.get("id")
-        password = request.form.get("password")
 
-        # Buscar por clave o por token
-        user = None
+    if request.method == "POST":
+        user_input = request.form.get("id", "").strip()
+        password = request.form.get("password", "").strip()
+
+        if not user_input or not password:
+            return render_template("login.html", error="Complete todos los campos")
+
+        user_id, user = None, None
         for uid, info in users.items():
             if uid == user_input or info.get("token") == user_input:
-                user = info
-                user_id = uid
+                user_id, user = uid, info
                 break
 
-        if user and user.get("password") == password and user.get("active", True):
+        if user and user.get("active", True) and check_password_hash(user["password"], password):
             session["user_id"] = user_id
             session["role"] = user.get("role", "client")
             return redirect("/dashboard")
@@ -157,6 +159,7 @@ def config_user():
         return render_template("error.html", code=404, msg="Usuario no encontrado")
 
     return render_template("config_user.html", user=user)
+
 # ============================================================
 # ⚙️ ADMIN: GESTIÓN DE NEGOCIOS
 # ============================================================
@@ -168,30 +171,41 @@ def admin_users():
     users = load_json(USERS_FILE, {})
 
     if request.method == "POST":
-        id = request.form.get("id")
-        token = request.form.get("token")
-        name = request.form.get("name")
-        password = request.form.get("password")
+        id = request.form.get("id", "").strip()
+        token = request.form.get("token", "").strip()
+        name = request.form.get("name", "").strip()
+        password = request.form.get("password", "").strip()
         active = request.form.get("active") == "Sí"
 
-        if id:
-            users[id] = {
-                "password": password or users.get(id, {}).get("password", ""),
-                "token": token,
-                "name": name,
-                "active": active,
-                "role": "client"
-            }
-            save_json(USERS_FILE, users)
+        if not id or not name:
+            return render_template("error.html", code=400, msg="Datos inválidos")
+
+        if id not in users or password:
+            password_hash = generate_password_hash(password)
+        else:
+            password_hash = users[id]["password"]
+
+        users[id] = {
+            "password": password_hash,
+            "token": token,
+            "name": name,
+            "active": active,
+            "role": "client"
+        }
+        save_json(USERS_FILE, users)
 
     return render_template("admin_users.html", users=users)
 
 @app.route("/admin/toggle/<user_key>")
 def toggle_user(user_key):
+    if not is_logged_in() or not is_admin():
+        return render_template("forbidden.html"), 403
+
     users = load_json(USERS_FILE, {})
-    if user_key in users:
+    if user_key in users and users[user_key].get("role") != "admin":
         users[user_key]["active"] = not users[user_key].get("active", True)
         save_json(USERS_FILE, users)
+
     return redirect("/dashboard")
 
 # ============================================================
@@ -238,12 +252,13 @@ def change_password():
     if request.method == "POST":
         old = request.form.get("old")
         new = request.form.get("new")
-        if user["password"] == old:
-            user["password"] = new
+
+        if check_password_hash(user["password"], old):
+            user["password"] = generate_password_hash(new)
             save_json(USERS_FILE, users)
-            msg = "Contraseña cambiada correctamente"
+            msg = "Contraseña cambiada correctamente ✅"
         else:
-            msg = "Contraseña anterior incorrecta"
+            msg = "Contraseña anterior incorrecta ❌"
 
     return render_template("change_password.html", user=user, msg=msg)
 
@@ -267,7 +282,6 @@ def add_payment():
         "fecha": datetime.now().isoformat()
     })
     save_json(PAYMENTS_FILE, payments)
-
     return jsonify({"status": "ok", "msg": "Pago registrado"})
 
 @app.route("/api/payments")
@@ -299,4 +313,4 @@ def _500(_e): return render_template("error.html", code=500, msg="Error interno"
 # ============================================================
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=False)

@@ -1,16 +1,16 @@
 {
-  "admin": {
-    "password": "blackdog123",
-    "role": "admin",
-    "name": "BlackDog Admin",
-    "token": "BLACKDOG-ADMIN-LOCAL",
-    "active": true
-  },
-  "BlackDog": {
-    "password": "1234",
-    "role": "client",
-    "name": "BlackDog Store",
-    "token": "BlackDog-ESP32-LOCAL",
-    "active": true
-  }
+    "admin": {
+        "password": "scrypt:32768:8:1$R7KSMkHzbKA57L7P$6bf197f0ecb8d3e28c2dc670197f7e8f1e71bde91ea90c2e913a40034023e73913d4d367c8e5d06a13875432d88867139e4ded7dcb9d8883924750153cd6b53f",
+        "role": "admin",
+        "name": "BlackDog Admin",
+        "token": "BLACKDOG-ADMIN-LOCAL",
+        "active": true
+    },
+    "BlackDog": {
+        "password": "scrypt:32768:8:1$7DLYTBZtWnF42mZu$0b208f3d44772509808b7fd7b2abc38e570c13586bac8c5310837afcb1508585ad7fbb9e1f93d15e58fd9bbb720b32b8b2bb504fca1aba2c08977497ba9ea284",
+        "role": "client",
+        "name": "BlackDog Store",
+        "token": "BlackDog-ESP32-LOCAL",
+        "active": true
+    }
 }

@@ -1,6 +1,6 @@
 {
     "admin": {
-        "password": "scrypt:32768:8:1$R7KSMkHzbKA57L7P$6bf197f0ecb8d3e28c2dc670197f7e8f1e71bde91ea90c2e913a40034023e73913d4d367c8e5d06a13875432d88867139e4ded7dcb9d8883924750153cd6b53f",
+        "password": "scrypt:32768:8:1$abcd1234$12ceaa97b7b47869d36f35d2b47e5c2d1c45d6db87063f9b4a1b615ed9b2051811e6d7f7a9e308f0aa03d661e9b77dbf9a9d8c70a2f9388ef0d9b8caa58bc6f0",
         "role": "admin",
         "name": "BlackDog Admin",
         "token": "BLACKDOG-ADMIN-LOCAL",

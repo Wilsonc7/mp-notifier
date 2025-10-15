@@ -1,161 +1,32 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8">
-  <title>BlackDog | MP Notifier</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    :root {
-      --bg: #0d0d0d;
-      --panel: #1a1a1a;
-      --accent: #0f8;
-      --text: #eee;
-      --error: #c33;
-      --ok: #2d862d;
-    }
-
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      display: flex;
-      height: 100vh;
-    }
-
-    /* --- LATERAL --- */
-    aside {
-      background: var(--panel);
-      width: 220px;
-      padding: 20px 10px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      box-shadow: 2px 0 10px #000;
-    }
-
-    aside img {
-      height: 60px;
-      margin-bottom: 10px;
-    }
-
-    aside h1 {
-      font-size: 1.1em;
-      color: var(--accent);
-      text-align: center;
-      margin: 0 0 20px 0;
-    }
-
-    nav {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-    }
-
-    nav a {
-      color: var(--text);
-      text-decoration: none;
-      padding: 10px 15px;
-      border-radius: 6px;
-      margin: 2px 5px;
-      font-weight: bold;
-      transition: 0.2s;
-    }
-
-    nav a:hover {
-      background: var(--accent);
-      color: #000;
-    }
-
-    /* --- CONTENIDO --- */
-    main {
-      flex: 1;
-      padding: 20px 30px;
-      overflow-y: auto;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #111;
-      padding: 10px 20px;
-      border-radius: 8px;
-      margin-bottom: 20px;
-    }
-
-    .flash {
-      margin-bottom: 15px;
-      padding: 10px;
-      border-radius: 5px;
-    }
-
-    .flash.ok { background: var(--ok); color: #fff; }
-    .flash.err { background: var(--error); color: #fff; }
-
-    h2 { color: var(--accent); }
-
-    .card {
-      background: var(--panel);
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-
-    input, select, button {
-      width: 100%;
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      margin: 6px 0;
-    }
-
-    button {
-      background: var(--accent);
-      color: #000;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    button:hover {
-      background: #00cc88;
-    }
-
-    @media(max-width: 800px) {
-      aside { width: 70px; }
-      aside h1 { display: none; }
-      nav a { font-size: 0.9em; padding: 8px; text-align: center; }
-    }
-  </style>
+  <meta charset="UTF-8">
+  <title>{% block title %}BlackDog{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
-  <aside>
-    <img src="{{ url_for('static', filename='img/ic_launcher.png') }}" alt="BlackDog">
-    <h1>MP Notifier</h1>
+  <header>
+    <div class="logo">
+      <img src="/static/img/ic_launcher.png" height="40">
+      <h2>BlackDog Panel</h2>
+    </div>
     <nav>
-      <a href="{{ url_for('dashboard') }}">📊 Panel</a>
-      {% if user and user.role == 'admin' %}
-        <a href="{{ url_for('admin_users') }}">👤 Negocios</a>
+      {% if session['user_id'] %}
+      <a href="/dashboard">🏠 Inicio</a>
+      <a href="/change_password">🔒 Contraseña</a>
+      <a href="/config">⚙️ Configuración</a>
+      <a href="/logout" class="logout">🚪 Salir</a>
       {% endif %}
-      <a href="{{ url_for('config_user') }}">⚙️ Configuración</a>
-      <a href="{{ url_for('logout') }}">🚪 Salir</a>
     </nav>
-  </aside>
+  </header>
 
   <main>
-    <header>
-      <div>Bienvenido, <b>{{ user.name if user else 'Invitado' }}</b></div>
-      {% if user %}
-        <div style="font-size:0.9em;color:#888;">Rol: {{ user.role|capitalize }}</div>
-      {% endif %}
-    </header>
-
-    {% for cat, msg in get_flashed_messages(with_categories=True) %}
-      <div class="flash {{ cat }}">{{ msg }}</div>
-    {% endfor %}
-
     {% block content %}{% endblock %}
   </main>
+
+  <footer>
+    <p>© {{ datetime.utcnow().year }} BlackDog Systems — Panel de Monitoreo</p>
+  </footer>
 </body>
 </html>

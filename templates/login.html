@@ -1,19 +1,11 @@
 {% extends "_base.html" %}
+{% block title %}Iniciar Sesión{% endblock %}
 {% block content %}
-<div class="card" style="max-width:520px;margin:40px auto">
-  <h1>Iniciar sesión</h1>
-  <p class="muted">Ingresá tu <b>token</b> y <b>contraseña</b>.</p>
-  <form method="post">
-    <label>Token del negocio</label>
-    <input name="token" placeholder="p.ej. BlackDog-ESP32-LOCAL" required>
-    <div style="height:10px"></div>
-    <label>Contraseña</label>
-    <input type="password" name="password" placeholder="********" required>
-    <div style="height:14px"></div>
-    <button class="btn ok" type="submit">Entrar</button>
-  </form>
-  {% if weak_passwords %}
-    <div class="flash err">⚠️ Cambiá las contraseñas por defecto del admin/negocio apenas puedas.</div>
-  {% endif %}
-</div>
+<h2>🔑 Iniciar Sesión</h2>
+{% if error %}<p style="color:red;">{{ error }}</p>{% endif %}
+<form method="POST" class="form-card">
+  <label>ID:</label><input name="id" required>
+  <label>Contraseña:</label><input name="password" type="password" required>
+  <button type="submit">➡️ Entrar</button>
+</form>
 {% endblock %}

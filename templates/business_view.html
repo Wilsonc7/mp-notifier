@@ -3,17 +3,30 @@
 {% block content %}
 <h2>{{ negocio.name }}</h2>
 <p><b>Token:</b> {{ negocio.token }}</p>
-<p><b>Estado:</b> 
+<p><b>Estado:</b>
   {% if negocio.active %}<span style="color:lime;">Activo</span>
   {% else %}<span style="color:red;">Bloqueado</span>{% endif %}
 </p>
 
 <div class="metrics">
-  <div class="card"><h4>Totales (Hoy)</h4><p>$0 — 0 pagos</p></div>
-  <div class="card"><h4>Totales (Semana)</h4><p>$0 — 0 pagos</p></div>
-  <div class="card"><h4>Totales (Mes)</h4><p>$0 — 0 pagos</p></div>
+  <div class="card"><h4>Hoy</h4><p>${{ total_hoy }}</p></div>
+  <div class="card"><h4>Semana</h4><p>${{ total_semana }}</p></div>
+  <div class="card"><h4>Mes</h4><p>${{ total_mes }}</p></div>
 </div>
 
 <hr>
-<p>No hay datos de pagos todavía.</p>
+<h3>📅 Pagos recientes</h3>
+<table class="styled-table">
+  <thead><tr><th>Fecha</th><th>Monto</th></tr></thead>
+  <tbody>
+  {% for p in pagos|reverse %}
+    <tr>
+      <td>{{ p.fecha.split('T')[0] }}</td>
+      <td>${{ p.monto }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="2">Sin pagos registrados.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
 {% endblock %}

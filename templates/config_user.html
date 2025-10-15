@@ -1,19 +1,12 @@
 {% extends "_base.html" %}
+{% block title %}Configuración{% endblock %}
 {% block content %}
-<h2>Configuración de cuenta</h2>
+<h2>⚙️ Configuración</h2>
 
-<div class="card" style="max-width:450px;margin:auto;">
-  <form method="POST">
-    <label>Contraseña actual</label>
-    <input type="password" name="old_pass" required>
+<p><b>Usuario:</b> {{ user.name }}</p>
+<p><b>Token:</b> {{ user.token }}</p>
+<p><b>Estado:</b> {% if user.active %}🟢 Activo{% else %}🔴 Bloqueado{% endif %}</p>
 
-    <label>Nueva contraseña</label>
-    <input type="password" name="new_pass" required minlength="4">
-
-    <label>Confirmar nueva contraseña</label>
-    <input type="password" name="confirm_pass" required minlength="4">
-
-    <button type="submit" class="btn ok">Actualizar contraseña</button>
-  </form>
-</div>
+<hr>
+<a href="/change_password" class="btn">Cambiar Contraseña</a>
 {% endblock %}

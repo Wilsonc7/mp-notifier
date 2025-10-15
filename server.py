@@ -4,31 +4,49 @@ import json, os, datetime
 app = Flask(__name__)
 app.secret_key = "blackdog_secret"
 
-DATA_FILE = "data/users.json"
+# =====================
+# ARCHIVOS DE DATOS
+# =====================
+USERS_FILE = "data/users.json"
+PAYMENTS_FILE = "data/payments.json"
 
 # =====================
-# CARGA Y GUARDADO JSON
+# FUNCIONES AUXILIARES
 # =====================
-def load_users():
-    if not os.path.exists(DATA_FILE):
+def load_json(path):
+    if not os.path.exists(path):
         return {}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def save_users(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+def save_json(path, data):
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# =====================
-# RUTAS PRINCIPALES
-# =====================
+def load_users():
+    return load_json(USERS_FILE)
 
+def save_users(data):
+    save_json(USERS_FILE, data)
+
+def load_payments():
+    return load_json(PAYMENTS_FILE)
+
+def save_payments(data):
+    save_json(PAYMENTS_FILE, data)
+
+# =====================
+# RUTA PRINCIPAL
+# =====================
 @app.route("/")
 def home():
     if "user_id" in session:
         return redirect("/dashboard")
     return redirect("/login")
 
+# =====================
+# LOGIN / LOGOUT
+# =====================
 @app.route("/login", methods=["GET", "POST"])
 def login():
     users = load_users()
@@ -60,6 +78,7 @@ def dashboard():
         return redirect("/login")
 
     users = load_users()
+    payments = load_payments()
     user_id = session["user_id"]
     role = session.get("role", "client")
 
@@ -68,12 +87,28 @@ def dashboard():
         negocios = [u for u in users.values() if u["role"] == "client"]
         return render_template("admin_dashboard.html", user=users[user_id], negocios=negocios)
 
-    # CLIENTE → solo su negocio
-    if user_id not in users:
+    # CLIENTE → sólo su negocio
+    negocio = users.get(user_id)
+    if not negocio:
         return render_template("error.html", code=403, msg="Usuario no encontrado")
 
-    negocio = users[user_id]
-    return render_template("business_view.html", negocio=negocio, user=negocio)
+    token = negocio.get("token")
+    pagos = payments.get(token, [])
+
+    hoy = datetime.date.today()
+    semana = hoy - datetime.timedelta(days=7)
+    mes = hoy - datetime.timedelta(days=30)
+
+    total_hoy = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) == hoy)
+    total_semana = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) >= semana)
+    total_mes = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) >= mes)
+
+    return render_template("business_view.html",
+                           negocio=negocio,
+                           total_hoy=total_hoy,
+                           total_semana=total_semana,
+                           total_mes=total_mes,
+                           pagos=pagos)
 
 # =====================
 # ADMIN: GESTIÓN DE NEGOCIOS
@@ -81,7 +116,7 @@ def dashboard():
 @app.route("/admin/users", methods=["GET", "POST"])
 def admin_users():
     if "user_id" not in session or session.get("role") != "admin":
-        return render_template("error.html", code=403, msg="Acceso restringido")
+        return render_template("forbidden.html"), 403
 
     users = load_users()
 
@@ -153,8 +188,28 @@ def config_user():
     return render_template("config_user.html", user=user)
 
 # =====================
-# API SIMPLIFICADA PARA EL ESP32
+# API PARA ESP32
 # =====================
+@app.route("/api/add_payment")
+def add_payment():
+    token = request.args.get("token")
+    monto = request.args.get("monto")
+
+    if not token or not monto:
+        return jsonify({"error": "Faltan parámetros"}), 400
+
+    payments = load_payments()
+    if token not in payments:
+        payments[token] = []
+
+    payments[token].append({
+        "monto": float(monto),
+        "fecha": datetime.datetime.now().isoformat()
+    })
+    save_payments(payments)
+
+    return jsonify({"status": "ok", "msg": "Pago registrado"})
+
 @app.route("/api/payments")
 def api_payments():
     token = request.args.get("token")
@@ -167,18 +222,20 @@ def api_payments():
     if not negocio:
         return jsonify({"error": "Negocio no encontrado"}), 404
 
-    # Datos falsos de ejemplo
+    payments = load_payments().get(token, [])
+
     return jsonify({
         "negocio": negocio["name"],
-        "hoy": {"total": 0, "pagos": 0},
-        "semana": {"total": 0, "pagos": 0},
-        "mes": {"total": 0, "pagos": 0},
-        "resumen": []
+        "pagos": payments
     })
 
 # =====================
 # MANEJO DE ERRORES
 # =====================
+@app.errorhandler(403)
+def _403(_e):
+    return render_template("forbidden.html"), 403
+
 @app.errorhandler(404)
 def _404(_e):
     return render_template("error.html", code=404, msg="No encontrado"), 404
@@ -187,12 +244,8 @@ def _404(_e):
 def _500(_e):
     return render_template("error.html", code=500, msg="Error interno"), 500
 
-@app.errorhandler(403)
-def _403(_e):
-    return render_template("error.html", code=403, msg="Acceso denegado"), 403
-
 # =====================
-# RUN
+# EJECUCIÓN LOCAL / DEPLOY
 # =====================
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)

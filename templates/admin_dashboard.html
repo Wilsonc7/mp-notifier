@@ -1,32 +1,20 @@
 {% extends "_base.html" %}
-{% block title %}Panel Admin{% endblock %}
+{% block title %}Panel Administrador{% endblock %}
 {% block content %}
-<h2>Panel de Administración</h2>
+<h2>👑 Panel de Administrador</h2>
 
-<div class="metrics">
-  <div class="card"><h4>Totales (Hoy)</h4><p>$0 — 0 pagos</p></div>
-  <div class="card"><h4>Totales (Semana)</h4><p>$0 — 0 pagos</p></div>
-  <div class="card"><h4>Totales (Mes)</h4><p>$0 — 0 pagos</p></div>
-</div>
+<a href="/admin/users" class="btn">📋 Gestionar Negocios</a>
 
 <hr>
 <h3>Negocios registrados</h3>
-<a href="/admin/users" class="btn">➕ Agregar nuevo negocio</a>
 
 <table class="styled-table">
   <thead>
-    <tr>
-      <th>ID</th>
-      <th>Nombre</th>
-      <th>Token</th>
-      <th>Activo</th>
-      <th>Acción</th>
-    </tr>
+    <tr><th>Nombre</th><th>Token</th><th>Estado</th><th>Acción</th></tr>
   </thead>
   <tbody>
-    {% for n in negocios %}
+  {% for n in negocios %}
     <tr>
-      <td>{{ n.id }}</td>
       <td>{{ n.name }}</td>
       <td>{{ n.token }}</td>
       <td>
@@ -36,14 +24,11 @@
           <span style="color:red;">Bloqueado</span>
         {% endif %}
       </td>
-      <td>
-        <a href="/admin/toggle/{{ n.id }}" class="btn small">
-          {% if n.active %}Desactivar{% else %}Activar{% endif %}
-        </a>
-      </td>
+      <td><a href="/admin/toggle/{{ n.id }}">🔁 Cambiar</a></td>
     </tr>
-    {% endfor %}
+  {% else %}
+    <tr><td colspan="4">Sin negocios registrados</td></tr>
+  {% endfor %}
   </tbody>
 </table>
-
 {% endblock %}

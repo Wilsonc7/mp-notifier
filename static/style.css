@@ -1,0 +1,67 @@
+body {
+  background: #111;
+  color: #eee;
+  font-family: "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+}
+header {
+  background: #222;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 20px;
+}
+header .logo { display: flex; align-items: center; gap: 10px; }
+header nav a {
+  color: #eee;
+  margin-left: 15px;
+  text-decoration: none;
+}
+header nav a:hover { color: #0f0; }
+main { padding: 20px; }
+footer {
+  text-align: center;
+  padding: 10px;
+  background: #222;
+  color: #777;
+}
+.form-card {
+  background: #1b1b1b;
+  padding: 20px;
+  border-radius: 8px;
+  width: 300px;
+}
+.form-card input, select {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 5px;
+}
+button, .btn {
+  background: #0f0;
+  color: #000;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+}
+.metrics {
+  display: flex;
+  gap: 10px;
+}
+.card {
+  background: #222;
+  padding: 10px 20px;
+  border-radius: 8px;
+  flex: 1;
+  text-align: center;
+}
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.styled-table th, .styled-table td {
+  border-bottom: 1px solid #333;
+  padding: 8px;
+}

@@ -142,6 +142,22 @@ def dashboard():
                            pagos=pagos)
 
 # ============================================================
+# ⚙️ CONFIGURACIÓN DEL USUARIO / ADMIN
+# ============================================================
+@app.route("/config")
+def config_user():
+    if not is_logged_in():
+        return redirect("/login")
+
+    users = load_json(USERS_FILE, {})
+    user_id = session["user_id"]
+    user = users.get(user_id)
+
+    if not user:
+        return render_template("error.html", code=404, msg="Usuario no encontrado")
+
+    return render_template("config_user.html", user=user)
+# ============================================================
 # ⚙️ ADMIN: GESTIÓN DE NEGOCIOS
 # ============================================================
 @app.route("/admin/users", methods=["GET", "POST"])

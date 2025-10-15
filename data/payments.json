@@ -1,4 +1,4 @@
-[
+{
   {
     "id": "1",
     "token": "BlackDog-ESP32-LOCAL",
@@ -13,4 +13,4 @@
     "descripcion": "Recaudación semanal",
     "monto": "12500.00"
   }
-]
+}

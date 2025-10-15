@@ -1,55 +1,83 @@
-from flask import Flask, render_template, request, redirect, url_for, session, jsonify
-import json, os, datetime
+# ==========================
+#  BlackDog Systems - Server
+# ==========================
+
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
+from datetime import datetime
+from pytz import timezone
+import json
+import os
 
 app = Flask(__name__)
-app.secret_key = "blackdog_secret"
+app.secret_key = os.getenv("SECRET_KEY", "blackdog-secret-key")
 
-# =====================
-# ARCHIVOS DE DATOS
-# =====================
-USERS_FILE = "data/users.json"
-PAYMENTS_FILE = "data/payments.json"
+# ============================================================
+# 🔧 Inyectar datetime y hora local en todas las plantillas Jinja
+# ============================================================
+@app.context_processor
+def inject_datetime():
+    """Inyecta objetos datetime en Jinja para uso global"""
+    tz = timezone("America/Argentina/Cordoba")
+    now_local = datetime.now(tz)
+    return {
+        "datetime": datetime,      # permite usar {{ datetime.utcnow().year }}
+        "localtime": now_local     # permite usar {{ localtime.strftime('%H:%M') }}
+    }
 
-# =====================
-# FUNCIONES AUXILIARES
-# =====================
-def load_json(path):
-    if not os.path.exists(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+# ============================================================
+# 📁 Funciones de manejo de JSON (usuarios, pagos, etc.)
+# ============================================================
+def load_json(file_path, default_data):
+    if not os.path.exists(file_path):
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(default_data, f, indent=4)
+        return default_data
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return default_data
 
-def save_json(path, data):
-    with open(path, "w", encoding="utf-8") as f:
+def save_json(file_path, data):
+    with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-def load_users():
-    return load_json(USERS_FILE)
+# ============================================================
+# 🗂️ Archivos de datos
+# ============================================================
+USERS_FILE = "data/users.json"
+PAYMENTS_FILE = "data/payments.json"
+os.makedirs("data", exist_ok=True)
 
-def save_users(data):
-    save_json(USERS_FILE, data)
+users_data = load_json(USERS_FILE, {
+    "admin": {"password": "admin123", "role": "admin", "active": True}
+})
+payments_data = load_json(PAYMENTS_FILE, {})
 
-def load_payments():
-    return load_json(PAYMENTS_FILE)
+# ============================================================
+# 🔐 Verificaciones de sesión
+# ============================================================
+def is_logged_in():
+    return "user_id" in session
 
-def save_payments(data):
-    save_json(PAYMENTS_FILE, data)
+def is_admin():
+    return session.get("role") == "admin"
 
-# =====================
-# RUTA PRINCIPAL
-# =====================
+# ============================================================
+# 🌐 Rutas principales
+# ============================================================
 @app.route("/")
 def home():
     if "user_id" in session:
         return redirect("/dashboard")
     return redirect("/login")
 
-# =====================
-# LOGIN / LOGOUT
-# =====================
+# ============================================================
+# 🔑 LOGIN / LOGOUT
+# ============================================================
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    users = load_users()
+    users = load_json(USERS_FILE, {})
     if request.method == "POST":
         user_id = request.form.get("id")
         password = request.form.get("password")
@@ -69,25 +97,23 @@ def logout():
     session.clear()
     return redirect("/login")
 
-# =====================
-# DASHBOARD
-# =====================
+# ============================================================
+# 📊 DASHBOARD (Admin / Cliente)
+# ============================================================
 @app.route("/dashboard")
 def dashboard():
-    if "user_id" not in session:
+    if not is_logged_in():
         return redirect("/login")
 
-    users = load_users()
-    payments = load_payments()
+    users = load_json(USERS_FILE, {})
+    payments = load_json(PAYMENTS_FILE, {})
     user_id = session["user_id"]
     role = session.get("role", "client")
 
-    # ADMIN → puede ver todos los negocios
     if role == "admin":
-        negocios = [u for u in users.values() if u["role"] == "client"]
+        negocios = [u for u in users.values() if u.get("role") == "client"]
         return render_template("admin_dashboard.html", user=users[user_id], negocios=negocios)
 
-    # CLIENTE → sólo su negocio
     negocio = users.get(user_id)
     if not negocio:
         return render_template("error.html", code=403, msg="Usuario no encontrado")
@@ -95,13 +121,13 @@ def dashboard():
     token = negocio.get("token")
     pagos = payments.get(token, [])
 
-    hoy = datetime.date.today()
-    semana = hoy - datetime.timedelta(days=7)
-    mes = hoy - datetime.timedelta(days=30)
+    hoy = datetime.now().date()
+    semana = hoy.replace(day=max(1, hoy.day - 7))
+    mes = hoy.replace(day=max(1, hoy.day - 30))
 
-    total_hoy = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) == hoy)
-    total_semana = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) >= semana)
-    total_mes = sum(p["monto"] for p in pagos if datetime.date.fromisoformat(p["fecha"][:10]) >= mes)
+    total_hoy = sum(p["monto"] for p in pagos if p["fecha"][:10] == str(hoy))
+    total_semana = sum(p["monto"] for p in pagos if p["fecha"][:10] >= str(semana))
+    total_mes = sum(p["monto"] for p in pagos if p["fecha"][:10] >= str(mes))
 
     return render_template("business_view.html",
                            negocio=negocio,
@@ -110,15 +136,15 @@ def dashboard():
                            total_mes=total_mes,
                            pagos=pagos)
 
-# =====================
-# ADMIN: GESTIÓN DE NEGOCIOS
-# =====================
+# ============================================================
+# ⚙️ ADMIN: GESTIÓN DE NEGOCIOS
+# ============================================================
 @app.route("/admin/users", methods=["GET", "POST"])
 def admin_users():
-    if "user_id" not in session or session.get("role") != "admin":
+    if not is_logged_in() or not is_admin():
         return render_template("forbidden.html"), 403
 
-    users = load_users()
+    users = load_json(USERS_FILE, {})
 
     if request.method == "POST":
         id = request.form.get("id")
@@ -126,7 +152,6 @@ def admin_users():
         name = request.form.get("name")
         password = request.form.get("password")
         active = request.form.get("active") == "Sí"
-        role = "client"
         access_token = request.form.get("access_token")
 
         if id:
@@ -137,29 +162,29 @@ def admin_users():
                 "password": password or users.get(id, {}).get("password", ""),
                 "active": active,
                 "access_token": access_token,
-                "role": role
+                "role": "client"
             }
-            save_users(users)
+            save_json(USERS_FILE, users)
 
     return render_template("admin_users.html", users=users)
 
 @app.route("/admin/toggle/<user_id>")
 def toggle_user(user_id):
-    users = load_users()
+    users = load_json(USERS_FILE, {})
     if user_id in users:
         users[user_id]["active"] = not users[user_id].get("active", True)
-        save_users(users)
+        save_json(USERS_FILE, users)
     return redirect("/admin/users")
 
-# =====================
-# CAMBIO DE CONTRASEÑA
-# =====================
+# ============================================================
+# 🔒 CAMBIO DE CONTRASEÑA
+# ============================================================
 @app.route("/change_password", methods=["GET", "POST"])
 def change_password():
-    if "user_id" not in session:
+    if not is_logged_in():
         return redirect("/login")
 
-    users = load_users()
+    users = load_json(USERS_FILE, {})
     user = users.get(session["user_id"])
     msg = ""
 
@@ -168,28 +193,28 @@ def change_password():
         new = request.form.get("new")
         if user["password"] == old:
             user["password"] = new
-            save_users(users)
+            save_json(USERS_FILE, users)
             msg = "Contraseña cambiada correctamente"
         else:
             msg = "Contraseña anterior incorrecta"
 
     return render_template("change_password.html", user=user, msg=msg)
 
-# =====================
-# CONFIGURACIÓN DE USUARIO
-# =====================
+# ============================================================
+# ⚙️ CONFIGURACIÓN DE USUARIO
+# ============================================================
 @app.route("/config")
 def config_user():
-    if "user_id" not in session:
+    if not is_logged_in():
         return redirect("/login")
 
-    users = load_users()
+    users = load_json(USERS_FILE, {})
     user = users.get(session["user_id"])
     return render_template("config_user.html", user=user)
 
-# =====================
-# API PARA ESP32
-# =====================
+# ============================================================
+# 🔌 API PARA ESP32
+# ============================================================
 @app.route("/api/add_payment")
 def add_payment():
     token = request.args.get("token")
@@ -198,15 +223,15 @@ def add_payment():
     if not token or not monto:
         return jsonify({"error": "Faltan parámetros"}), 400
 
-    payments = load_payments()
+    payments = load_json(PAYMENTS_FILE, {})
     if token not in payments:
         payments[token] = []
 
     payments[token].append({
         "monto": float(monto),
-        "fecha": datetime.datetime.now().isoformat()
+        "fecha": datetime.now().isoformat()
     })
-    save_payments(payments)
+    save_json(PAYMENTS_FILE, payments)
 
     return jsonify({"status": "ok", "msg": "Pago registrado"})
 
@@ -216,22 +241,18 @@ def api_payments():
     if not token:
         return jsonify({"error": "Token requerido"}), 400
 
-    users = load_users()
+    users = load_json(USERS_FILE, {})
     negocio = next((u for u in users.values() if u.get("token") == token), None)
 
     if not negocio:
         return jsonify({"error": "Negocio no encontrado"}), 404
 
-    payments = load_payments().get(token, [])
+    payments = load_json(PAYMENTS_FILE, {}).get(token, [])
+    return jsonify({"negocio": negocio["name"], "pagos": payments})
 
-    return jsonify({
-        "negocio": negocio["name"],
-        "pagos": payments
-    })
-
-# =====================
-# MANEJO DE ERRORES
-# =====================
+# ============================================================
+# 🧱 ERRORES PERSONALIZADOS
+# ============================================================
 @app.errorhandler(403)
 def _403(_e):
     return render_template("forbidden.html"), 403
@@ -244,8 +265,9 @@ def _404(_e):
 def _500(_e):
     return render_template("error.html", code=500, msg="Error interno"), 500
 
-# =====================
-# EJECUCIÓN LOCAL / DEPLOY
-# =====================
+# ============================================================
+# 🚀 EJECUCIÓN LOCAL / DEPLOY
+# ============================================================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    port = int(os.getenv("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)

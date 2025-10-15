@@ -1,69 +1,49 @@
 {% extends "_base.html" %}
-{% block title %}Admin · Dashboard{% endblock %}
-
+{% block title %}Panel Admin{% endblock %}
 {% block content %}
-<h2>Dashboard Global</h2>
+<h2>Panel de Administración</h2>
 
-<form class="filters" method="get" action="{{ url_for('admin_dashboard') }}">
-  <label>Rango:
-    <select name="range" onchange="this.form.submit()">
-      <option value="today" {{ 'selected' if active_range=='today' else '' }}>Hoy</option>
-      <option value="7" {{ 'selected' if active_range=='7' else '' }}>Últimos 7 días</option>
-      <option value="30" {{ 'selected' if active_range=='30' else '' }}>Últimos 30 días</option>
-      <option value="custom" {{ 'selected' if active_range=='custom' else '' }}>Personalizado</option>
-    </select>
-  </label>
-  <label>Desde: <input type="date" name="from" value="{{ start_date }}"></label>
-  <label>Hasta: <input type="date" name="to" value="{{ end_date }}"></label>
-  <button type="submit">Aplicar</button>
-</form>
-
-<div class="cards">
-  <div class="card"><h3>Hoy</h3><p><b>${{ metrics.today.total }}</b> — {{ metrics.today.count }} pagos</p></div>
-  <div class="card"><h3>Semana</h3><p><b>${{ metrics.week.total }}</b> — {{ metrics.week.count }} pagos</p></div>
-  <div class="card"><h3>Mes</h3><p><b>${{ metrics.month.total }}</b> — {{ metrics.month.count }} pagos</p></div>
+<div class="metrics">
+  <div class="card"><h4>Totales (Hoy)</h4><p>$0 — 0 pagos</p></div>
+  <div class="card"><h4>Totales (Semana)</h4><p>$0 — 0 pagos</p></div>
+  <div class="card"><h4>Totales (Mes)</h4><p>$0 — 0 pagos</p></div>
 </div>
 
-<canvas id="chartGlobal" height="110"></canvas>
+<hr>
+<h3>Negocios registrados</h3>
+<a href="/admin/users" class="btn">➕ Agregar nuevo negocio</a>
 
-<h3 style="margin-top:24px">Top negocios (por mes)</h3>
-<table class="table">
-  <thead><tr><th>ID</th><th>Nombre</th><th>Estado</th><th>Hoy</th><th>Semana</th><th>Mes</th><th></th></tr></thead>
-  <tbody>
-    {% for b in board %}
+<table class="styled-table">
+  <thead>
     <tr>
-      <td>{{ b.id }}</td>
-      <td>{{ b.name }}</td>
-      <td>{% if b.active %}<span class="badge green">activo</span>{% else %}<span class="badge red">bloqueado</span>{% endif %}</td>
-      <td>${{ b.today_total }}</td>
-      <td>${{ b.week_total }}</td>
-      <td><b>${{ b.month_total }}</b></td>
+      <th>ID</th>
+      <th>Nombre</th>
+      <th>Token</th>
+      <th>Activo</th>
+      <th>Acción</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for n in negocios %}
+    <tr>
+      <td>{{ n.id }}</td>
+      <td>{{ n.name }}</td>
+      <td>{{ n.token }}</td>
       <td>
-        <a class="btn" href="{{ url_for('admin_business_view', biz_id=b.id, range=active_range, from=start_date, to=end_date) }}">Ver</a>
-        <a class="btn" href="{{ url_for('admin_impersonate', biz_id=b.id) }}">Ver como</a>
-        <button class="btn-ghost" onclick="toggle('{{ b.id }}')">{{ 'Desactivar' if b.active else 'Activar' }}</button>
+        {% if n.active %}
+          <span style="color:lime;">Activo</span>
+        {% else %}
+          <span style="color:red;">Bloqueado</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="/admin/toggle/{{ n.id }}" class="btn small">
+          {% if n.active %}Desactivar{% else %}Activar{% endif %}
+        </a>
       </td>
     </tr>
     {% endfor %}
   </tbody>
 </table>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const series = {{ metrics.series|tojson }};
-new Chart(document.getElementById('chartGlobal'), {
-  type: 'line',
-  data: {
-    labels: series.map(x=>x.date),
-    datasets: [{ label: 'Total ($)', data: series.map(x=>x.total) },
-               { label: 'Pagos', data: series.map(x=>x.count), yAxisID: 'y1' }]
-  },
-  options: { responsive:true, scales:{ y:{ beginAtZero:true }, y1:{ position:'right', beginAtZero:true, grid:{ drawOnChartArea:false }}}}
-});
-async function toggle(id){
-  const r = await fetch(`/admin/toggle/${id}`, {method:'POST'});
-  const j = await r.json();
-  if(j.ok){ location.reload(); }
-}
-</script>
 {% endblock %}

@@ -2,19 +2,15 @@
 {% block content %}
 <div class="container mt-5 text-center">
     <h3 class="text-light mb-4">📋 Panel del Administrador</h3>
-    <p class="text-muted">
-        Bienvenido, <strong>{{ user.name or user_id or "Administrador" }}</strong>
-    </p>
+    <p class="text-muted">Bienvenido, <strong>{{ session.get('user_id') }}</strong></p>
 
-    <a href="/admin/users" class="btn btn-success mb-3 animate-btn">
-        ➕ Agregar o editar negocios
-    </a>
+    <a href="/admin/users" class="btn btn-success mb-3 animate-btn">➕ Agregar o editar negocios</a>
 
     <div class="table-responsive">
-        <table class="table table-dark table-bordered align-middle shadow">
+        <table class="table table-dark table-bordered align-middle">
             <thead class="table-dark">
                 <tr>
-                    <th>Clave</th>
+                    <th>ID</th>
                     <th>Nombre</th>
                     <th>Token</th>
                     <th>Estado</th>
@@ -22,13 +18,12 @@
                 </tr>
             </thead>
             <tbody>
-                {% for key, n in negocios|dictsort %}
+                {% for n in negocios %}
                 <tr>
-                    <td>{{ key }}</td>
+                    <td>{{ n.id }}</td>
                     <td>
-                        <a href="/admin/business/{{ key }}" 
-                           class="text-decoration-none text-info fw-bold">
-                           {{ n.name }}
+                        <a href="/admin/business/{{ n.id }}" class="text-decoration-none text-info fw-bold">
+                            {{ n.name }}
                         </a>
                     </td>
                     <td>{{ n.token }}</td>
@@ -36,18 +31,11 @@
                         {{ "Activo" if n.active else "Inactivo" }}
                     </td>
                     <td>
-                        <a href="/admin/toggle/{{ key }}" 
-                           class="btn {% if n.active %}btn-danger{% else %}btn-success{% endif %} btn-sm">
-                           {% if n.active %}🚫 Desactivar{% else %}✅ Activar{% endif %}
-                        </a>
+                        <a href="/admin/toggle/{{ n.id }}" class="btn btn-danger btn-sm">🔄 Cambiar estado</a>
                     </td>
                 </tr>
                 {% else %}
-                <tr>
-                    <td colspan="5" class="text-muted">
-                        No hay negocios registrados.
-                    </td>
-                </tr>
+                <tr><td colspan="5" class="text-muted">No hay negocios registrados.</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -68,11 +56,10 @@
     }
     .btn-danger {
         font-weight: bold;
-        background-color: #ff5555;
         transition: all 0.2s ease-in-out;
     }
     .btn-danger:hover {
-        background-color: #ff2020;
+        background-color: #ff4040;
         transform: scale(1.05);
     }
     .animate-btn {

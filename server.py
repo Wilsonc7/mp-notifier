@@ -1,6 +1,6 @@
-# ==========================
+# ============================================================
 #  BlackDog Systems - MP Transfer Notifier (SQLite Secure Edition)
-# ==========================
+# ============================================================
 
 from flask import Flask, render_template, request, redirect, jsonify, session
 from datetime import datetime
@@ -20,7 +20,7 @@ app.config["SESSION_COOKIE_SECURE"] = True  # Render usa HTTPS
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 
 # ------------------------------------------------------------
-# 🕒 Fecha local disponible en templates
+# 🕒 Fecha local
 # ------------------------------------------------------------
 @app.context_processor
 def inject_datetime():
@@ -37,7 +37,7 @@ DB_PATH = "data/payments.db"
 KEY_FILE = "data/.key"
 
 # ============================================================
-# 🔐 Inicialización del sistema (clave para cifrar tokens)
+# 🔐 Inicialización del sistema
 # ============================================================
 if not os.path.exists(KEY_FILE):
     with open(KEY_FILE, "wb") as f:
@@ -45,12 +45,12 @@ if not os.path.exists(KEY_FILE):
 fernet = Fernet(open(KEY_FILE, "rb").read())
 
 # ============================================================
-# 📦 Utilidades JSON (para users.json)
+# 📦 Funciones JSON
 # ============================================================
 def load_json(path, default):
     if not os.path.exists(path):
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(default, f, indent=4, ensure_ascii=False)
+            json.dump(default, f, indent=4)
         return default
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -80,7 +80,7 @@ def init_db():
     cur.execute("""
     CREATE TABLE IF NOT EXISTS payments (
         id TEXT PRIMARY KEY,
-        negocio TEXT,            -- guardamos el token del negocio
+        negocio TEXT,
         nombre TEXT,
         monto REAL,
         estado TEXT,
@@ -91,34 +91,26 @@ def init_db():
     con.close()
 
 def add_payment(negocio, pago):
-    """Inserta si no existe (por id). 'negocio' es el token del local."""
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
     cur.execute("SELECT id FROM payments WHERE id=?", (pago["id"],))
-    exists = cur.fetchone() is not None
-    if not exists:
-        cur.execute(
-            "INSERT INTO payments (id, negocio, nombre, monto, estado, fecha_local) VALUES (?, ?, ?, ?, ?, ?)",
-            (pago["id"], negocio, pago.get("nombre", "Cliente"), float(pago.get("monto", 0.0)),
-             pago.get("estado", "credited"), pago.get("fecha_local", ""))
-        )
+    if cur.fetchone() is None:
+        cur.execute("INSERT INTO payments VALUES (?, ?, ?, ?, ?, ?)",
+                    (pago["id"], negocio, pago["nombre"], pago["monto"],
+                     pago["estado"], pago["fecha_local"]))
         con.commit()
     con.close()
 
 def get_payments_by_token(token):
-    """Devuelve lista de pagos para el token del negocio (ordenados desc por fecha_local)."""
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
-    cur.execute(
-        "SELECT id,nombre,monto,estado,fecha_local FROM payments WHERE negocio=? ORDER BY fecha_local DESC",
-        (token,)
-    )
+    cur.execute("SELECT id,nombre,monto,estado,fecha_local FROM payments WHERE negocio=? ORDER BY fecha_local DESC", (token,))
     rows = cur.fetchall()
     con.close()
     return [{"id": r[0], "nombre": r[1], "monto": r[2], "estado": r[3], "fecha_local": r[4]} for r in rows]
 
 # ============================================================
-# 🔐 Cifrado de tokens de Mercado Pago (en users.json)
+# 🔐 Cifrado de tokens
 # ============================================================
 def encrypt_token(token: str) -> str:
     return fernet.encrypt(token.encode()).decode()
@@ -130,61 +122,45 @@ def decrypt_token(token_enc: str) -> str:
         return ""
 
 # ============================================================
-# 🔄 Consultar Mercado Pago (movimientos de cuenta)
+# 🔄 Consultar Mercado Pago
 # ============================================================
-def fetch_movements_for_business(negocio_token: str, access_token: str):
-    """
-    Llama a /v1/account/movements (movimientos de cuenta).
-    Si encuentra movimientos acreditados, los inserta en SQLite.
-    """
+def fetch_movements_for_business(name, access_token):
     url = "https://api.mercadopago.com/v1/account/movements"
     headers = {"Authorization": f"Bearer {access_token}"}
     try:
         r = requests.get(url, headers=headers, timeout=10)
         if r.status_code == 200:
-            data = r.json() or {}
-            for mov in data.get("results", []):
-                # Filtramos entradas de dinero (ajustá 'type' si tu cuenta devuelve distinto)
+            data = r.json()
+            results = data.get("results", [])
+            print(f"[MP] {name}: {len(results)} movimientos encontrados.")
+            for mov in results:
                 if mov.get("type") in ["credited", "accredited"]:
                     pago = {
-                        "id": str(mov.get("id", "")) or f"{negocio_token}-{mov.get('date_created','')}",
+                        "id": mov.get("id", str(time.time())),
                         "nombre": mov.get("counterpart_name", "Cliente"),
-                        "monto": float(mov.get("amount", 0.0)),
-                        "estado": mov.get("type", "credited"),
-                        # guardamos fecha ISO si viene, si no dejamos vacío
+                        "monto": mov.get("amount", 0.0),
+                        "estado": mov.get("type"),
                         "fecha_local": mov.get("date_created", "")
                     }
-                    add_payment(negocio_token, pago)
+                    add_payment(name, pago)
         else:
-            print(f"[MP] {negocio_token} → HTTP {r.status_code}: {r.text[:120]}")
+            print(f"[MP] {name} → Error HTTP {r.status_code}")
     except Exception as e:
-        print(f"[MP] {negocio_token} → Error de conexión:", e)
+        print(f"[MP] {name} → Fallo conexión:", e)
 
 # ============================================================
-# 🕓 Polling automático cada 20s
+# 🕓 Polling automático cada 20 segundos
 # ============================================================
 def polling_thread():
     while True:
         users = load_json(USERS_FILE, {})
-        for uid, info in users.items():
-            if not info.get("active", True):
+        for user, info in users.items():
+            if not info.get("active"):
                 continue
-            # cada local tiene su TOKEN (para el ESP32) y su mp_access_token cifrado
-            negocio_token = info.get("token", "")
-            mp_token_enc = info.get("mp_access_token", "")
-            access_token = decrypt_token(mp_token_enc) if mp_token_enc else ""
-            if negocio_token and access_token:
-                fetch_movements_for_business(negocio_token, access_token)
+            access_token = decrypt_token(info.get("mp_access_token", ""))
+            if access_token:
+                fetch_movements_for_business(info.get("token"), access_token)
         time.sleep(20)
-
-# ============================================================
-# 🏠 Inicio
-# ============================================================
-@app.route("/")
-def home():
-    if is_logged_in():
-        return redirect("/dashboard")
-    return redirect("/login")
 
 # ============================================================
 # 🔑 LOGIN / LOGOUT
@@ -202,7 +178,6 @@ def login():
 
         user_id, user = None, None
         for uid, info in users.items():
-            # login por ID de usuario o por token de negocio
             if uid.lower() == user_input.lower() or info.get("token", "").lower() == user_input.lower():
                 user_id, user = uid, info
                 break
@@ -237,33 +212,28 @@ def dashboard():
         negocios = []
         for uid, info in users.items():
             if info.get("role") != "admin":
-                item = dict(info)
-                item["id"] = uid
-                negocios.append(item)
-        return render_template("admin_dashboard.html", user=users.get(user_id, {}), negocios=negocios)
+                info["id"] = uid
+                negocios.append(info)
+        return render_template("admin_dashboard.html", user=users[user_id], negocios=negocios)
 
-    # vista cliente
     negocio = users.get(user_id)
     if not negocio:
         return render_template("error.html", code=403, msg="Usuario no encontrado")
 
-    token = negocio.get("token", "")
-    pagos = get_payments_by_token(token) if token else []
+    token = negocio.get("token")
+    pagos = get_payments_by_token(token)
 
-    # Totales (usando fecha_local)
-    hoy_str = str(datetime.now().date())
-    total_hoy = sum(p["monto"] for p in pagos if (p.get("fecha_local") or "")[:10] == hoy_str)
-    total_semana = sum(p["monto"] for p in pagos)  # placeholder
-    total_mes = total_semana                        # placeholder
+    hoy = datetime.now().date()
+    total_hoy = sum(p["monto"] for p in pagos if str(hoy) in p["fecha_local"])
+    total_semana = sum(p["monto"] for p in pagos)
+    total_mes = total_semana
 
-    return render_template(
-        "business_view.html",
-        negocio=negocio,
-        total_hoy=total_hoy,
-        total_semana=total_semana,
-        total_mes=total_mes,
-        pagos=pagos
-    )
+    return render_template("business_view.html",
+                           negocio=negocio,
+                           total_hoy=total_hoy,
+                           total_semana=total_semana,
+                           total_mes=total_mes,
+                           pagos=pagos)
 
 # ============================================================
 # 🧩 ADMINISTRACIÓN DE USUARIOS
@@ -276,28 +246,24 @@ def admin_users():
     users = load_json(USERS_FILE, {})
 
     if request.method == "POST":
-        uid = request.form.get("id", "").strip()
+        id = request.form.get("id", "").strip()
         name = request.form.get("name", "").strip()
-        token = request.form.get("token", "").strip()               # token del ESP32/local
-        mp_access = request.form.get("mp_access_token", "").strip() # Access Token de MP
+        token = request.form.get("token", "").strip()
+        mp_access = request.form.get("mp_access_token", "").strip()
         password = request.form.get("password", "").strip()
-        active = request.form.get("active") in ("on", "true", "1", "Sí", "si", "SI", "sí")
 
-        if not uid or not name:
+        if not id or not name:
             return render_template("error.html", code=400, msg="Datos incompletos")
 
-        if uid not in users or password:
-            pw_hash = generate_password_hash(password)
-        else:
-            pw_hash = users[uid]["password"]
+        pw_hash = generate_password_hash(password) if password else users.get(id, {}).get("password", "")
 
-        users[uid] = {
+        users[id] = {
             "password": pw_hash,
             "name": name,
             "token": token,
             "role": "client",
-            "active": active,
-            "mp_access_token": encrypt_token(mp_access) if mp_access else users.get(uid, {}).get("mp_access_token", "")
+            "active": True,
+            "mp_access_token": encrypt_token(mp_access)
         }
 
         save_json(USERS_FILE, users)
@@ -305,30 +271,50 @@ def admin_users():
     return render_template("admin_users.html", users=users)
 
 # ============================================================
-# 📡 API para ESP32 (lee pagos por token)
+# 📡 API para ESP32
 # ============================================================
 @app.route("/api/payments")
 def api_payments():
-    token = request.args.get("token", "").strip()
+    token = request.args.get("token")
     if not token:
         return jsonify({"error": "Token requerido"}), 400
     pagos = get_payments_by_token(token)
     return jsonify({"negocio": token, "pagos": pagos})
 
 # ============================================================
-# 🧱 ERRORES
+# 🧪 TEST: Verificar conexión con Mercado Pago
 # ============================================================
-@app.errorhandler(403)
-def _403(_e): return render_template("forbidden.html"), 403
+@app.route("/api/test_mp")
+def test_mp():
+    user_id = request.args.get("user_id", "")
+    users = load_json(USERS_FILE, {})
+    if user_id not in users:
+        return jsonify({"error": "Usuario no encontrado"}), 404
 
-@app.errorhandler(404)
-def _404(_e): return render_template("error.html", code=404, msg="No encontrado"), 404
+    info = users[user_id]
+    access_token = decrypt_token(info.get("mp_access_token", ""))
+    if not access_token:
+        return jsonify({"error": "Access token no disponible"}), 400
 
-@app.errorhandler(500)
-def _500(_e): return render_template("error.html", code=500, msg="Error interno"), 500
+    url = "https://api.mercadopago.com/v1/account/movements"
+    headers = {"Authorization": f"Bearer {access_token}"}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        return jsonify({"status_code": r.status_code, "data": r.json()})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # ============================================================
-# 🚀 MAIN
+# 🏠 INICIO
+# ============================================================
+@app.route("/")
+def home():
+    if is_logged_in():
+        return redirect("/dashboard")
+    return redirect("/login")
+
+# ============================================================
+# 🚀 EJECUCIÓN
 # ============================================================
 if __name__ == "__main__":
     init_db()

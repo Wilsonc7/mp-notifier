@@ -4,19 +4,24 @@
 {% block content %}
 <h2>Dashboard Global</h2>
 
+<form class="filters" method="get" action="{{ url_for('admin_dashboard') }}">
+  <label>Rango:
+    <select name="range" onchange="this.form.submit()">
+      <option value="today" {{ 'selected' if active_range=='today' else '' }}>Hoy</option>
+      <option value="7" {{ 'selected' if active_range=='7' else '' }}>Últimos 7 días</option>
+      <option value="30" {{ 'selected' if active_range=='30' else '' }}>Últimos 30 días</option>
+      <option value="custom" {{ 'selected' if active_range=='custom' else '' }}>Personalizado</option>
+    </select>
+  </label>
+  <label>Desde: <input type="date" name="from" value="{{ start_date }}"></label>
+  <label>Hasta: <input type="date" name="to" value="{{ end_date }}"></label>
+  <button type="submit">Aplicar</button>
+</form>
+
 <div class="cards">
-  <div class="card">
-    <h3>Hoy</h3>
-    <p><b>${{ metrics.today.total }}</b> — {{ metrics.today.count }} pagos</p>
-  </div>
-  <div class="card">
-    <h3>Semana</h3>
-    <p><b>${{ metrics.week.total }}</b> — {{ metrics.week.count }} pagos</p>
-  </div>
-  <div class="card">
-    <h3>Mes</h3>
-    <p><b>${{ metrics.month.total }}</b> — {{ metrics.month.count }} pagos</p>
-  </div>
+  <div class="card"><h3>Hoy</h3><p><b>${{ metrics.today.total }}</b> — {{ metrics.today.count }} pagos</p></div>
+  <div class="card"><h3>Semana</h3><p><b>${{ metrics.week.total }}</b> — {{ metrics.week.count }} pagos</p></div>
+  <div class="card"><h3>Mes</h3><p><b>${{ metrics.month.total }}</b> — {{ metrics.month.count }} pagos</p></div>
 </div>
 
 <canvas id="chartGlobal" height="110"></canvas>
@@ -29,17 +34,14 @@
     <tr>
       <td>{{ b.id }}</td>
       <td>{{ b.name }}</td>
-      <td>
-        {% if b.active %}<span class="badge green">activo</span>
-        {% else %}<span class="badge red">bloqueado</span>{% endif %}
-      </td>
+      <td>{% if b.active %}<span class="badge green">activo</span>{% else %}<span class="badge red">bloqueado</span>{% endif %}</td>
       <td>${{ b.today_total }}</td>
       <td>${{ b.week_total }}</td>
       <td><b>${{ b.month_total }}</b></td>
       <td>
-        <a class="btn" href="{{ url_for('admin_business_view', biz_id=b.id) }}">Ver</a>
+        <a class="btn" href="{{ url_for('admin_business_view', biz_id=b.id, range=active_range, from=start_date, to=end_date) }}">Ver</a>
         <a class="btn" href="{{ url_for('admin_impersonate', biz_id=b.id) }}">Ver como</a>
-        <button class="btn-ghost" onclick="toggle('{{ b.id }}', this)">{{ 'Desactivar' if b.active else 'Activar' }}</button>
+        <button class="btn-ghost" onclick="toggle('{{ b.id }}')">{{ 'Desactivar' if b.active else 'Activar' }}</button>
       </td>
     </tr>
     {% endfor %}
@@ -53,24 +55,12 @@ new Chart(document.getElementById('chartGlobal'), {
   type: 'line',
   data: {
     labels: series.map(x=>x.date),
-    datasets: [{
-      label: 'Total ($)',
-      data: series.map(x=>x.total)
-    },{
-      label: 'Pagos',
-      data: series.map(x=>x.count),
-      yAxisID: 'y1'
-    }]
+    datasets: [{ label: 'Total ($)', data: series.map(x=>x.total) },
+               { label: 'Pagos', data: series.map(x=>x.count), yAxisID: 'y1' }]
   },
-  options: {
-    responsive: true,
-    scales: {
-      y: { beginAtZero:true },
-      y1: { position: 'right', beginAtZero:true, grid:{ drawOnChartArea:false } }
-    }
-  }
+  options: { responsive:true, scales:{ y:{ beginAtZero:true }, y1:{ position:'right', beginAtZero:true, grid:{ drawOnChartArea:false }}}}
 });
-async function toggle(id, btn){
+async function toggle(id){
   const r = await fetch(`/admin/toggle/${id}`, {method:'POST'});
   const j = await r.json();
   if(j.ok){ location.reload(); }

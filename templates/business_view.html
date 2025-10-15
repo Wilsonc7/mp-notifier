@@ -4,19 +4,26 @@
 {% block content %}
 <h2>{{ business.name }} <small style="opacity:.6">({{ business_id }})</small></h2>
 
+<form class="filters" method="get" action="{{ url_for('admin_business_view', biz_id=business_id) }}">
+  <label>Rango:
+    <select name="range" onchange="this.form.submit()">
+      <option value="today" {{ 'selected' if active_range=='today' else '' }}>Hoy</option>
+      <option value="7" {{ 'selected' if active_range=='7' else '' }}>Últimos 7 días</option>
+      <option value="30" {{ 'selected' if active_range=='30' else '' }}>Últimos 30 días</option>
+      <option value="custom" {{ 'selected' if active_range=='custom' else '' }}>Personalizado</option>
+    </select>
+  </label>
+  <label>Desde: <input type="date" name="from" value="{{ start_date }}"></label>
+  <label>Hasta: <input type="date" name="to" value="{{ end_date }}"></label>
+  <button type="submit">Aplicar</button>
+  <a class="btn" style="margin-left:8px"
+     href="{{ url_for('export_csv', biz_id=business_id, range=active_range, from=start_date, to=end_date) }}">📥 Exportar CSV</a>
+</form>
+
 <div class="cards">
-  <div class="card">
-    <h3>Hoy</h3>
-    <p><b>${{ metrics.today.total }}</b> — {{ metrics.today.count }} pagos</p>
-  </div>
-  <div class="card">
-    <h3>Semana</h3>
-    <p><b>${{ metrics.week.total }}</b> — {{ metrics.week.count }} pagos</p>
-  </div>
-  <div class="card">
-    <h3>Mes</h3>
-    <p><b>${{ metrics.month.total }}</b> — {{ metrics.month.count }} pagos</p>
-  </div>
+  <div class="card"><h3>Hoy</h3><p><b>${{ metrics.today.total }}</b> — {{ metrics.today.count }} pagos</p></div>
+  <div class="card"><h3>Semana</h3><p><b>${{ metrics.week.total }}</b> — {{ metrics.week.count }} pagos</p></div>
+  <div class="card"><h3>Mes</h3><p><b>${{ metrics.month.total }}</b> — {{ metrics.month.count }} pagos</p></div>
 </div>
 
 <div style="margin: 6px 0 14px">
@@ -26,7 +33,9 @@
 
 <canvas id="chartBiz" height="110"></canvas>
 
-<h3 style="margin-top:24px">Últimos movimientos</h3>
+<h3 style="margin-top:24px">Movimientos (aprobados)</h3>
+<p style="opacity:.8">Mostrando {{ (page-1)*25 + 1 }}–{{ (page-1)*25 + rows|length }} de {{ total }} ({{ start_date }} a {{ end_date }})</p>
+
 <table class="table">
   <thead><tr><th>Fecha</th><th>Monto</th><th>Estado</th><th>Nombre</th><th>ID</th></tr></thead>
   <tbody>
@@ -42,15 +51,21 @@
   </tbody>
 </table>
 
+<div class="pager">
+  {% if page > 1 %}
+  <a class="btn-ghost" href="{{ url_for('admin_business_view', biz_id=business_id, page=page-1, range=active_range, from=start_date, to=end_date) }}">&larr; Anterior</a>
+  {% endif %}
+  {% if page < pages %}
+  <a class="btn-ghost" href="{{ url_for('admin_business_view', biz_id=business_id, page=page+1, range=active_range, from=start_date, to=end_date) }}">Siguiente &rarr;</a>
+  {% endif %}
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const series = {{ metrics.series|tojson }};
 new Chart(document.getElementById('chartBiz'), {
   type:'bar',
-  data:{
-    labels: series.map(x=>x.date),
-    datasets:[{ label:'Total ($)', data: series.map(x=>x.total) }]
-  },
+  data:{ labels: series.map(x=>x.date), datasets:[{ label:'Total ($)', data: series.map(x=>x.total) }] },
   options:{ responsive:true, scales:{ y:{ beginAtZero:true } } }
 });
 </script>

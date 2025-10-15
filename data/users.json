@@ -12,5 +12,13 @@
         "name": "BlackDog Store",
         "token": "BlackDog-ESP32-LOCAL",
         "active": true
+    },
+    "black": {
+        "password": "scrypt:32768:8:1$aCzkRXPhqPXsDrlO$ee6e32da384d78c6b4fdb7108d7b575520d428ca4a1921e6d6b55c806d10d100585e712812192f61ed44995ea26a0e8522d8f313eadeedb4f068fe4cd2e730fd",
+        "role": "client",
+        "name": "black",
+        "token": "Black-esp32-local",
+        "mp_access_token": "APP_USR-7815066182538811-101317-a99416f9647435ea507fe1c029c4315d-62679300",
+        "active": true
     }
 }

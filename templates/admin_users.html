@@ -1,34 +1,45 @@
-{% extends "_base.html" %}
-{% block title %}Usuarios Admin{% endblock %}
+{% extends "base.html" %}
 {% block content %}
-<h2>📋 Gestión de Negocios</h2>
+<h2>👥 Gestión de Comercios</h2>
 
-<form method="POST" class="form-card">
-  <label>ID:</label><input name="id" required>
-  <label>Nombre del negocio:</label><input name="name" required>
-  <label>Token:</label><input name="token" required>
-  <label>Contraseña:</label><input name="password">
-  <label>Activo:</label>
-  <select name="active"><option>Sí</option><option>No</option></select>
-  <label>Access Token (ESP32):</label><input name="access_token">
-  <button type="submit">💾 Guardar</button>
+<form method="POST" style="background:#111;padding:20px;border-radius:10px;margin-bottom:25px;">
+    <h3>➕ Agregar / Actualizar Comercio</h3>
+    <label>ID:</label><br>
+    <input name="id" required><br><br>
+
+    <label>Nombre:</label><br>
+    <input name="name" required><br><br>
+
+    <label>Token Local (para ESP32):</label><br>
+    <input name="token" placeholder="BlackDog-ESP32-LOCAL"><br><br>
+
+    <label>Access Token de Mercado Pago:</label><br>
+    <input name="mp_access_token" placeholder="APP_USR-xxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="width:400px"><br><br>
+
+    <label>Contraseña:</label><br>
+    <input name="password" type="password" placeholder="(dejar vacío para no cambiar)"><br><br>
+
+    <button class="btn">💾 Guardar Comercio</button>
 </form>
 
-<hr>
-<h3>Negocios Existentes</h3>
-<table class="styled-table">
-  <thead><tr><th>ID</th><th>Nombre</th><th>Token</th><th>Activo</th></tr></thead>
-  <tbody>
-    {% for id, u in users.items() if u.role == 'client' %}
-      <tr>
-        <td>{{ id }}</td>
-        <td>{{ u.name }}</td>
-        <td>{{ u.token }}</td>
-        <td>{% if u.active %}🟢{% else %}🔴{% endif %}</td>
-      </tr>
-    {% else %}
-      <tr><td colspan="4">No hay clientes registrados</td></tr>
+<h3>📋 Comercios Existentes</h3>
+<table>
+    <tr><th>ID</th><th>Nombre</th><th>Token Local</th><th>Activo</th><th>Rol</th><th>Acciones</th></tr>
+    {% for key, info in users.items() %}
+    <tr>
+        <td>{{ key }}</td>
+        <td>{{ info.name }}</td>
+        <td>{{ info.token }}</td>
+        <td>{{ "✅" if info.active else "❌" }}</td>
+        <td>{{ info.role }}</td>
+        <td>
+            {% if info.role != "admin" %}
+                <a href="/admin/toggle/{{ key }}" class="btn btn-danger">
+                    {{ "Desactivar" if info.active else "Activar" }}
+                </a>
+            {% endif %}
+        </td>
+    </tr>
     {% endfor %}
-  </tbody>
 </table>
 {% endblock %}

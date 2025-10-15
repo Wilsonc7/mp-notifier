@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Registro de Comercio - BlackDog Systems</title>
+<style>
+body { background:#111; color:#eee; font-family:Arial; text-align:center; padding:30px; }
+input { padding:8px; margin:8px; width:260px; border-radius:6px; border:none; }
+button { background:#0f8; color:#000; border:none; border-radius:6px; padding:10px 18px; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+<h2>🛍️ Registro de Comercio</h2>
+<form method="POST">
+  Nombre del Comercio:<br>
+  <input name="comercio" required><br>
+  Token del ESP32:<br>
+  <input name="token_local" required><br>
+  Access Token de Mercado Pago (PRODUCCIÓN):<br>
+  <input name="mp_access_token" required><br>
+  Contraseña (opcional):<br>
+  <input name="password" type="password"><br><br>
+  <button type="submit">Registrar Comercio</button>
+</form>
+
+{% if msg %}
+  <p style="margin-top:20px;">{{ msg }}</p>
+{% endif %}
+</body>
+</html>

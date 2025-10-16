@@ -2,8 +2,6 @@ services:
   - type: web
     name: mp-notifier
     env: python
-    region: oregon
-    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: gunicorn server:app
     envVars:

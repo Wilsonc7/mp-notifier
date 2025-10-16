@@ -1,46 +1,45 @@
-from flask import Flask, jsonify, request
-import requests
+from flask import Flask, jsonify
 import os
+import requests
 
 app = Flask(__name__)
 
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN")
 
-@app.route('/')
-def index():
-    return jsonify({"status": "ok", "message": "Servidor MP Notifier funcionando correctamente"})
+@app.route("/")
+def home():
+    return "Servidor MP Notifier activo ✅"
 
-@app.route('/pagos', methods=['GET'])
-def pagos():
+@app.route("/pagos", methods=["GET"])
+def get_pagos():
+    if not ACCESS_TOKEN:
+        return jsonify({"error": "ACCESS_TOKEN no configurado"}), 500
+
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}"
+    }
+    url = "https://api.mercadopago.com/v1/payments/search?sort=date_created&criteria=desc&limit=10"
+
     try:
-        url = "https://api.mercadopago.com/v1/payments/search"
-        headers = {
-            "Authorization": f"Bearer {ACCESS_TOKEN}"
-        }
-        params = {
-            "sort": "date_created",
-            "criteria": "desc",
-            "limit": 10
-        }
-
-        r = requests.get(url, headers=headers, params=params)
-        data = r.json()
+        response = requests.get(url, headers=headers, timeout=10)
+        data = response.json()
 
         pagos = []
-        for result in data.get("results", []):
-            if result.get("status") == "approved":
-                pago = {
-                    "id": result.get("id"),
-                    "estado": result.get("status"),
-                    "monto": result.get("transaction_amount"),
-                    "fecha": result.get("date_created"),
-                    "nombre": result.get("payer", {}).get("first_name", "Desconocido")
-                }
-                pagos.append(pago)
+        for pago in data.get("results", []):
+            if pago.get("status") == "approved":
+                pagos.append({
+                    "id": pago.get("id"),
+                    "estado": pago.get("status"),
+                    "monto": pago.get("transaction_amount"),
+                    "fecha": pago.get("date_created"),
+                    "nombre": pago.get("payer", {}).get("first_name", "Desconocido")
+                })
 
-        return jsonify(pagos)
+        return jsonify(pagos), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.getenv("PORT", 5000)))
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

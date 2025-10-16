@@ -2,9 +2,10 @@ services:
   - type: web
     name: mp-notifier
     env: python
+    region: oregon
     plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "python server.py"
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app
     envVars:
-      - key: SECRET_KEY
-        value: "cambia-esto-por-una-clave-larga-y-segura"
+      - key: ACCESS_TOKEN
+        sync: false
